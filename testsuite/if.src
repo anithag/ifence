@@ -1,0 +1,2 @@
+x:int_high; y:int_high
+if y == x then x:=1 else x:=2 fi

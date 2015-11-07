@@ -1,0 +1,2 @@
+x := 1; call ( (lambda. y:=2)); l := 100; l <- 10;  while x == 10 do x := x + 1
+

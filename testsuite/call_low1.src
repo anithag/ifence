@@ -1,0 +1,2 @@
+x:int_low; l1000: func(high, {})_low
+call(l1000)

@@ -65,7 +65,7 @@ and printEncStmt' ppf  = function
   | ECall(m,e)    -> printECall m printEncExp' e
   | EUpdate(m,e1, e2) -> printEUpdate m printEncExp' e1 e2
   | EWhile(m, b, s) -> printEWhile m printEncExp' b printEncStmt' s
-  | ESkip m -> printESkip m
+  | ESkip (m, m') -> printESkip m'
   | EOutput(m,ch, e) -> printEOutput m ch printEncExp' e
   | ESet(m,x)	-> printESet m x
 

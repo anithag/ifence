@@ -1,0 +1,2 @@
+y:int_low; x:int_high
+y:=10;skip;x:=100

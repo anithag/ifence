@@ -1,0 +1,2 @@
+x:int_high; l1000: func(high, {})_low ref_low
+if x == 10 then call(l1000) else skip fi; skip

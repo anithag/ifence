@@ -1,0 +1,7 @@
+x:int_low; y:func(low, {})_low; z:int_low
+if x == 0 then
+ y := (lambda(high, {}).z:= z + 1)_low
+else
+ y := (lambda(high, {}).z:=z+2)_low
+fi;
+call(y)

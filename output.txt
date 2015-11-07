@@ -1,5 +1,5 @@
-0|- x := 100  ; enclave( y := 10  ; x <- y )
+0|-enclave( if x = 10 then call(l1000) else skip ; skip )
  --------------------------------------
-0|- x := 100 	1|- y := 10  ; x <- y
+1|- if x = 10 then call(l1000) else skip
  --------------------------------------
-1|- y := 10 	1|- x <- y	
+1|- call(l1000)	1|- skip	1|- skip	

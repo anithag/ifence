@@ -75,7 +75,7 @@ type encexp =
 (* Translation data structure. Each Statement has an associated mode in which it executes *)
 and  encstmt = 
    EIf of mode*encexp * encstmt * encstmt           (* if e1 then e2 else e3 *)
-  |ESkip of mode
+  |ESkip of mode * mode
   |EAssign of mode * var * encexp
   |EUpdate of mode * encexp * encexp
   |ESeq of mode * encstmt * encstmt

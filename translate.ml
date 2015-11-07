@@ -31,7 +31,7 @@ let getstmtmode   = function
   | ECall(m,e)    -> m
   | EUpdate(m,e1, e2) ->m
   | EWhile(m, b, s) -> m
-  | ESkip m -> m
+  | ESkip (m, m') -> m'
   | EOutput(m,ch, e) ->m
   | ESet(m,x)	-> m
 
@@ -46,7 +46,10 @@ match e with
 
 and translate oc (s, rhomap, space) = 
 match s with
- |ESkip rho -> printEncStmtwithmode oc (rhomap, s, false); printSpace oc 2
+ |ESkip (rho, rho') ->  let rhoprimeenc = (ModeSAT.find rho' rhomap) in
+			let rhonorm = (ModeSAT.find rho rhomap) in  
+			let insertenc = if  (rhonorm = 0)&&(rhoprimeenc = 1) then true else false in
+			 printEncStmtwithmode oc (rhomap, s, insertenc); printSpace oc 2
  |EAssign(rho, x, e) -> let rhoprimeenc = (ModeSAT.find (getexpmode e) rhomap) in
 			let rhonorm = (ModeSAT.find rho rhomap) in  
 			let insertenc = if  (rhonorm = 0)&&(rhoprimeenc = 1) then true else false in
@@ -86,7 +89,7 @@ and printEncStmtnomode oc  = function
   | ECall(m,e)    -> Printf.fprintf oc "call(%a)" printEncExpnomode e 
   | EUpdate(m,e1, e2) -> Printf.fprintf oc "%a <- %a" printEncExpnomode e1 printEncExpnomode e2
   | EWhile(m, b, s) -> Printf.fprintf oc "while %a do %a" printEncExpnomode b printEncStmtnomode s
-  | ESkip m -> Printf.fprintf oc "skip"
+  | ESkip (m, m') -> Printf.fprintf oc "skip"
   | EOutput(m,ch, e) -> Printf.fprintf oc "output(_, %a)" printEncExpnomode e
   | ESet(m,x)	-> Printf.fprintf oc "set(%s)" x
 
@@ -138,7 +141,7 @@ and printEncStmtwithmode oc  = function
 					  Printf.fprintf oc "%d|- enclave( while %a do %a )" (ModeSAT.find rho rhomap) printEncExpnomode b printEncStmtnomode s
 					 else
 					  Printf.fprintf oc "%d|- while %a do %a" (ModeSAT.find rho rhomap) printEncExpnomode b printEncStmtnomode s
-  | rhomap, (ESkip rho), isenc -> if isenc then
+  | rhomap, (ESkip (rho, rho')), isenc -> if isenc then
 				   Printf.fprintf oc "%d|-enclave(skip)" (ModeSAT.find rho rhomap) 
 				  else
 				   Printf.fprintf oc "%d|- skip" (ModeSAT.find rho rhomap) 
