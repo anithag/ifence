@@ -1,4 +1,4 @@
-l1000:int_high; x:int_high
+l1000:int_high ref_low; x:int_high
 x:=*l1000;
-call(*l1000)
+
 

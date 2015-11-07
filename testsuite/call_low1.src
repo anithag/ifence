@@ -1,2 +1,2 @@
-x:int_low; l1000: func(high, {})_low
-call(l1000)
+x:int_low; l1000: func(high, {})_low ref_low
+call(*l1000)
