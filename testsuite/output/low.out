@@ -1,0 +1,3 @@
+y := 10 ;
+skip;
+enclave( x := 100 )

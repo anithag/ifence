@@ -1,0 +1,179 @@
+Gammasrc:
+  (x) : (int)_l  (y) : func(l, {  })_l  (z) : (int)_l  
+
+Program:
+  if (x == 0) then  y:= lambda. (z:= (z + 1) ) 
+  else  y:= lambda. (z:= (z + 2) )   fi;  call(y) 
+
+Gammaenc:
+  (x) : (int)_l  (y) : func^x13 (l, {  })_l (z) : (int)_l  
+
+Translation:
+   x1  |- x2 |- if (x == 0)
+          then   x5 |-  y:= lambda^x9(h, _).( x10 |-  z:= (z + 1) )_l 
+          else   x6 |-  y:= lambda^x16(h, _).( x17 |-  z:= (z + 2) )_l   fi;
+   x3  |- call(y) 
+
+Constraints:
+  
+  x1 = Normal
+  x13 = x16
+  x13 = x9
+  x14 = x16
+  x16 = x17
+  x20 = x13
+  x7 = x9
+  x9 = x10
+
+Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Enclave -> (x11 = Enclave), (x12 = Enclave), 
+
+  x17 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), (x6 = Enclave), 
+
+  x3 = Enclave -> (x20 = Enclave), 
+
+  x4 = Enclave -> (x5 = Enclave), (x6 = Enclave), 
+
+  x5 = Enclave -> (x7 = Enclave), (x8 = Enclave), 
+
+  x6 = Enclave -> (x14 = Enclave), (x15 = Enclave), 
+
+
+Unification Result:
+  
+  x1 :  Normal
+  x10 :  x10
+  x11 :  x11
+  x12 :  x12
+  x13 :  x10
+  x15 :  x15
+  x16 :  x10
+  x17 :  x10
+  x18 :  x18
+  x19 :  x19
+  x2 :  x2
+  x20 :  x10
+  x3 :  x3
+  x4 :  x4
+  x5 :  x5
+  x6 :  x6
+  x8 :  x8
+  x9 :  x10
+
+Remaining Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Enclave -> (x11 = Enclave), (x12 = Enclave), 
+
+  x17 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), (x6 = Enclave), 
+
+  x3 = Enclave -> (x20 = Enclave), 
+
+  x4 = Enclave -> (x5 = Enclave), (x6 = Enclave), 
+
+  x5 = Enclave -> (x7 = Enclave), (x8 = Enclave), 
+
+  x6 = Enclave -> (x14 = Enclave), (x15 = Enclave), 
+
+
+c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
+c This is free software under the dual EPL/GNU LGPL licenses.
+c See www.sat4j.org for details.
+c version 2.3.5.v20130525
+c java.runtime.name	Java(TM) SE Runtime Environment
+c java.vm.name		Java HotSpot(TM) 64-Bit Server VM
+c java.vm.version	25.20-b23
+c java.vm.vendor	Oracle Corporation
+c sun.arch.data.model	64
+c java.version		1.8.0_20
+c os.name		Mac OS X
+c os.version		10.10.5
+c os.arch		x86_64
+c Free memory 		252056352
+c Max memory 		3817865216
+c Total memory 		257425408
+c Number of processors 	8
+c Pseudo Boolean Optimization by upper bound
+c c --- Begin Solver configuration ---
+c org.sat4j.pb.constraints.CompetResolutionPBLongMixedWLClauseCardConstrDataStructure@5910e440
+c Learn all clauses as in MiniSAT
+c claDecay=0.999 varDecay=0.95 conflictBoundIncFactor=1.5 initConflictBound=100 
+c VSIDS like heuristics from MiniSAT using a heap lightweight component caching from RSAT taking into account the objective function
+c No reason simplification
+c Glucose 2.1 dynamic restart strategy
+c Glucose 2 learned constraints deletion strategy
+c timeout=2147483s
+c DB Simplification allowed=false
+c Listener: org.sat4j.minisat.core.VoidTracing@533ddba
+c --- End Solver configuration ---
+c solving min.opb
+c reading problem ... 
+c ... done. Wall clock time 0.015s.
+c declared #vars     20
+c internal #vars     38
+c #constraints  65
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 28
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 18
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 18
+c ignored satisfied constraints => 3
+c org.sat4j.minisat.constraints.cnf.UnitClause => 1
+c 68 constraints processed.
+c objective function length is 33 literals
+c SATISFIABLE
+c OPTIMIZING...
+c Got one! Elapsed wall clock time (in seconds):0.018
+o 9
+c Got one! Elapsed wall clock time (in seconds):0.02
+o 6
+c Got one! Elapsed wall clock time (in seconds):0.02
+o 0
+c starts		: 4
+c conflicts		: 10
+c decisions		: 30
+c propagations		: 254
+c inspects		: 670
+c shortcuts		: 0
+c learnt literals	: 1
+c learnt binary clauses	: 3
+c learnt ternary clauses	: 1
+c learnt constraints	: 8
+c ignored constraints	: 0
+c root simplifications	: 0
+c removed literals (reason simplification)	: 0
+c reason swapping (by a shorter reason)	: 0
+c Calls to reduceDB	: 0
+c Number of update (reduction) of LBD	: 1
+c Imported unit clauses	: 0
+c number of reductions to clauses (during analyze)	: 0
+c number of learned constraints concerned by reduction	: 0
+c number of learning phase by resolution	: 0
+c number of learning phase by cutting planes	: 0
+c speed (assignments/second)	: 50800.0
+c non guided choices	8
+c learnt constraints type 
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 28
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 18
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 18
+c ignored satisfied constraints => 3
+c org.sat4j.minisat.constraints.cnf.UnitClause => 1
+c 68 constraints processed.
+s OPTIMUM FOUND
+c Found 3 solution(s)
+v -x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 -x16 -x17 -x18 -x19 -x20 
+c objective function=0
+c Total wall clock time (in seconds): 0.023
+Position: 3029
+V Position: 3065
+C Position: 3159
+-x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 -x16 -x17 -x18 -x19 -x20 
+

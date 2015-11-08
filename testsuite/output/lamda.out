@@ -1,0 +1,8 @@
+enclave( if x == 0 then y := (lambda^1(_,_).z := z + 1 )  else skip ;
+ call(y) )
+ 
+ 
+ 	 FUNCTION 
+ 	 =========
+ lambda^1(_,_).
+ 1|- z := z + 1 	

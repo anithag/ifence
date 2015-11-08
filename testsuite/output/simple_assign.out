@@ -1,0 +1,3 @@
+enclave( x := 33 );
+y := 10 ;
+skip

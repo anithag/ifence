@@ -1,0 +1,2 @@
+enclave(if x == 10 then call(l1000) else skip);
+skip

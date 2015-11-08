@@ -1,0 +1,153 @@
+Gammasrc:
+  (x) : (int)_l  (l1000) : ((int)_l  ref)_l  
+
+Program:
+  x:= 10 ;  skip;  l1000 <- x  
+
+Gammaenc:
+  (x) : (int)_l  (l1000) : ((int)_l  ref^x10)_l  
+
+Translation:
+   x1  |-  x2 |-  x:= 10 ;   x3  |-  x8 |- skip ;   x7 |- l1000^x10  <- x  
+
+Constraints:
+  
+  x1 = Normal
+
+Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Enclave -> (x9 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
+
+  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
+
+  x6 = Enclave -> (x8 = Enclave), 
+
+  x7 = Enclave -> (x9 = Enclave), 
+
+  x9 = Normal -> (x10 = Normal), 
+
+
+Unification Result:
+  
+  x1 :  Normal
+  x10 :  x10
+  x2 :  x2
+  x3 :  x3
+  x4 :  x4
+  x5 :  x5
+  x6 :  x6
+  x7 :  x7
+  x9 :  x9
+
+Remaining Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Enclave -> (x9 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
+
+  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
+
+  x6 = Enclave -> (x8 = Enclave), 
+
+  x7 = Enclave -> (x9 = Enclave), 
+
+  x9 = Normal -> (x10 = Normal), 
+
+
+c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
+c This is free software under the dual EPL/GNU LGPL licenses.
+c See www.sat4j.org for details.
+c version 2.3.5.v20130525
+c java.runtime.name	Java(TM) SE Runtime Environment
+c java.vm.name		Java HotSpot(TM) 64-Bit Server VM
+c java.vm.version	25.20-b23
+c java.vm.vendor	Oracle Corporation
+c sun.arch.data.model	64
+c java.version		1.8.0_20
+c os.name		Mac OS X
+c os.version		10.10.5
+c os.arch		x86_64
+c Free memory 		252056496
+c Max memory 		3817865216
+c Total memory 		257425408
+c Number of processors 	8
+c Pseudo Boolean Optimization by upper bound
+c c --- Begin Solver configuration ---
+c org.sat4j.pb.constraints.CompetResolutionPBLongMixedWLClauseCardConstrDataStructure@5910e440
+c Learn all clauses as in MiniSAT
+c claDecay=0.999 varDecay=0.95 conflictBoundIncFactor=1.5 initConflictBound=100 
+c VSIDS like heuristics from MiniSAT using a heap lightweight component caching from RSAT taking into account the objective function
+c No reason simplification
+c Glucose 2.1 dynamic restart strategy
+c Glucose 2 learned constraints deletion strategy
+c timeout=2147483s
+c DB Simplification allowed=false
+c Listener: org.sat4j.minisat.core.VoidTracing@533ddba
+c --- End Solver configuration ---
+c solving min.opb
+c reading problem ... 
+c ... done. Wall clock time 0.013s.
+c declared #vars     10
+c internal #vars     21
+c #constraints  31
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 8
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 11
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 11
+c ignored satisfied constraints => 3
+c org.sat4j.minisat.constraints.cnf.UnitClause => 1
+c 34 constraints processed.
+c objective function length is 21 literals
+c SATISFIABLE
+c OPTIMIZING...
+c Got one! Elapsed wall clock time (in seconds):0.016
+o 3
+c Got one! Elapsed wall clock time (in seconds):0.018
+o 0
+c starts		: 3
+c conflicts		: 9
+c decisions		: 20
+c propagations		: 91
+c inspects		: 220
+c shortcuts		: 0
+c learnt literals	: 2
+c learnt binary clauses	: 2
+c learnt ternary clauses	: 1
+c learnt constraints	: 6
+c ignored constraints	: 0
+c root simplifications	: 0
+c removed literals (reason simplification)	: 0
+c reason swapping (by a shorter reason)	: 0
+c Calls to reduceDB	: 0
+c Number of update (reduction) of LBD	: 0
+c Imported unit clauses	: 0
+c number of reductions to clauses (during analyze)	: 0
+c number of learned constraints concerned by reduction	: 0
+c number of learning phase by resolution	: 0
+c number of learning phase by cutting planes	: 0
+c speed (assignments/second)	: 22750.0
+c non guided choices	3
+c learnt constraints type 
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 8
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 11
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 11
+c ignored satisfied constraints => 3
+c org.sat4j.minisat.constraints.cnf.UnitClause => 1
+c 34 constraints processed.
+s OPTIMUM FOUND
+c Found 2 solution(s)
+v -x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 
+c objective function=0
+c Total wall clock time (in seconds): 0.02
+Position: 2969
+V Position: 3005
+C Position: 3049
+-x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 
+
