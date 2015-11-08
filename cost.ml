@@ -24,7 +24,6 @@ let compute_assign_trusted_cost (rho: mode) (rho':mode) =
 		      (PMonoterm (1, (Mono rho'))) 
 
 
-(*
 (* Entry given more cost than trusted code *)
 let compute_seq_entry_cost (rho:mode) (rho': mode) (rho'' : mode) = 
 	(* rho' + rho'' - rho rho' - rho rho'' -rho' rho'' + rho rho' rho'' *)
@@ -49,8 +48,8 @@ let compute_if_entry_cost (rho:mode) (rho':mode) (rho'':mode) (rho''':mode) =
 
 let compute_assign_entry_cost (rho: mode) (rho':mode) =
  (PMinus (PMonoterm (2, Mono rho'), PMonoterm (2, (Poly (rho, Mono rho')))))
-*)
 
+(*
 (* Entry given equal weight to trusted code *)
 let compute_seq_entry_cost (rho:mode) (rho': mode) (rho'' : mode) = 
 	(* rho' + rho'' - rho rho' - rho rho'' -rho' rho'' + rho rho' rho'' *)
@@ -75,3 +74,4 @@ let compute_if_entry_cost (rho:mode) (rho':mode) (rho'':mode) (rho''':mode) =
 
 let compute_assign_entry_cost (rho: mode) (rho':mode) =
  (PMinus (PMonoterm (1, Mono rho'), PMonoterm (1, (Poly (rho, Mono rho')))))
+*)

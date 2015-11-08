@@ -1,6 +1,6 @@
 MAIN=autopar
 
-OBJS = ast.cmo lexer.cmo parser.cmo eval.cmo helper.cmo pprint.cmo cost.cmo constraints.cmo translate.cmo util.cmo main.cmo 
+OBJS = ast.cmo lexer.cmo parser.cmo eval.cmo cost.cmo helper.cmo pprint.cmo constraints.cmo translate.cmo util.cmo main.cmo 
 
 %.cmo : %.ml
 	ocamlc -g -c $<

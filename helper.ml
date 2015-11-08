@@ -83,6 +83,9 @@ let rec countCondConstraints (c:constr2) =
          in
          outerloop c 0
           
+let cost_is_zero = function
+ |(PMonoterm (n, (Mono _)), PMonoterm (n', (Mono _))) -> if (n=0)&&(n'=0) then true else false 
+ | _ -> false
 
 (* ---------- FRESH TYPE VARIABLES ---------- *)
 let tvar_cell = ref 1
