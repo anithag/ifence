@@ -1,5 +1,0 @@
-0|-enclave( if x = 10 then call(l1000) else skip ; skip )
- --------------------------------------
-1|- if x = 10 then call(l1000) else skip
- --------------------------------------
-1|- call(l1000)	1|- skip	1|- skip	

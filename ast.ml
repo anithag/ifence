@@ -178,6 +178,7 @@ type polynomial =
    |PMinus    of polynomial * polynomial  (* 1 - 42*x_1*x_2  *)
 
 type cost = polynomial
+type totalcost = polynomial*polynomial 
 
 (* Mode SAT *)
 module ModeSAT = Map.Make(struct

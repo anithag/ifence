@@ -1,2 +1,2 @@
-x:int_high
-x:=33; skip
+x:int_high;y:int_low
+x:=33;y:=10;skip

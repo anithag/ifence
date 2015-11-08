@@ -5,6 +5,8 @@ open Helper
 open Translate
 open Util
 
+exception MainError
+
 let () =
   let _ =
     if (Array.length Sys.argv < 2) || (Array.length Sys.argv > 3) then
@@ -66,7 +68,7 @@ let () =
           Format.printf "@ =@ ";
           Pprint.printMode p2;
           true)
-        c0' false in
+        c0' true in
     Format.printf "@]@\n@\n" in
 
   let _ =
@@ -81,7 +83,7 @@ let () =
           Format.printf "@ ->@ ";
 	  Pprint.printList p3;
           true)
-        c1 false in
+        c1 true in
     Format.printf "@]@\n@\n" in
 (*
   let _ =
@@ -94,7 +96,7 @@ let () =
           Format.printf "@ |- @ ";
           Pprint.printProg p2;
           true)
-        m false in
+        m true in
     Format.printf "@]@\n@\n" in
  *)
 
@@ -111,7 +113,7 @@ let () =
           Format.printf "@ : @ ";
     	  Pprint.printMode (Helper.apply_subst s' rho);
           true)
-        ms false in
+        ms true in
     Format.printf "@]@\n@\n" in
 
   let _ =
@@ -126,13 +128,13 @@ let () =
           Format.printf "@ ->@ ";
 	  Pprint.printList p3;
           true)
-        tmp false in
+        tmp true in
     Format.printf "@]@\n@\n" in
 
   (* let v = Eval.eval_stmt VarLocMap.empty stmt in *)
-  
+  let totalc = PPlus (fst fcost, snd fcost) in 
   let condconstr_num = Helper.countCondConstraints c1 in
-  let _ = Pprint.printCost fcost ((Constr.cardinal c0') + condconstr_num) in
+  let _ = Pprint.printCost totalc ((Constr.cardinal c0') + condconstr_num) in
   let _ = Pprint.printConstraints c0' in
   let _ = Pprint.printCondConstraints c1 in
   
@@ -144,5 +146,12 @@ let () =
 
   (* print solution *)
   let oc = open_out "output.txt" in
-  let _ = Translate.translate oc (translation, model, 1) in
+  let _ = Translate.prettytranslate oc (translation, model) in
+  let elset = Translate.collectlam ELamSet.empty translation in 
+  let _ = ELamSet.fold (fun e b -> (if b then
+			match e with
+			|ELam (rho, rho', p, u, q, s) -> 
+					Printf.fprintf oc "\n \n \n \t FUNCTION \n \t =========\n lambda^%d(_,_).\n %a" (ModeSAT.find rho' model) Translate.translate (s, model, 1)
+			|_ -> raise MainError
+			);true) elset true in
    ()

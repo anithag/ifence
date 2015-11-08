@@ -293,12 +293,15 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
 	           let rho' = get_mode enctype in
 		   let rho'' = next_tvar () in
 		   let c1, c2, m1, ms1, genc1, _, es = gen_constraints g rho'' s genc in
-		   let c3 = Constr2.add ((rho, Enclave), [(rho'', Enclave)]) c2 in
-		   let c4, c5, m2, ms2, genc2 = (Constr.add (rho, rho') c1, c3, ModeProgSet.add (rho',(EncExp (construct_enc_lam_exp e es rho rho'))) m1, ModeSet.add rho' ms1, genc1) in 
+			(* rho' = rho''*)
+		   let c3 = Constr.add (rho', rho'') c1 in
+			(* rho = rho'*)
+		   let c4, c5, m2, ms2, genc2 = (Constr.add (rho, rho') c3, c2, ModeProgSet.add (rho',(EncExp (construct_enc_lam_exp e es rho rho'))) m1, ModeSet.add rho' ms1, genc1) in 
 			 begin match get_exp_label srctype with
 		  	 | Low -> (c4, c5, m2, ms2, genc2, ELam(rho, rho',p,u,q,es))
 			 | Erase(_,_,_) 
-			 | High -> (Constr.add (rho, Enclave) c4, c5, m2, ms2, genc2, ELam(rho,rho',p,u,q,es))
+			 | High -> let c6 = (Constr.add (rho, Enclave) c4) in
+					(Constr.add (rho', Enclave) c6, c5, m2, ms2, genc2, ELam(rho,rho',p,u,q,es))
 		         end
     |Deref e	->  let c1, c2, m1, ms1, genc1, ee = gen_constraints_exp g rho e genc in
 			begin match get_exp_label (get_exp_type g e) with
@@ -317,15 +320,15 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
    + modeenv - maps rho to program statements and expressions - for readability
    + modeset - set of mode variables
 *)
-and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr * constr2 * modeenv * modeset*enccontext*cost * encstmt = 
+and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr * constr2 * modeenv * modeset*enccontext*totalcost * encstmt = 
  let m = ModeProgSet.add (rho, (Stmt s0)) ModeProgSet.empty in
  let ms = ModeSet.add rho ModeSet.empty in
   match s0 with
     | Skip ->let rho' = next_tvar () in
 		      let entrycost = compute_assign_entry_cost rho rho' in
 		      let trustedcost = compute_assign_trusted_cost rho rho' in
- 		      let totalcost = (PPlus(entrycost, trustedcost)) in
-		 (Constr.empty, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) Constr2.empty), m, ms, genc, totalcost, ESkip (rho, rho'))
+ 		      let totalc = (entrycost, trustedcost) in
+		 (Constr.empty, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) Constr2.empty), m, ms, genc, totalc, ESkip (rho, rho'))
 
     | Assign(x, e) -> let rho' = next_tvar () in (* for e *)
 		      let rho'' = next_tvar () in (* for Var x *)
@@ -340,24 +343,30 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 
 		      let t1 = gen_constraints_type enclt1 enclt2 in
 		      let c7 = update_constraints t1 c5 in			
+		
+		       (* rho = E -> rho' = rho'' = E *)
+		      let c8 = Constr2.add ((rho, Enclave),[(rho', Enclave); (rho'', Enclave)]) c6 in
+
 		      let entrycost = compute_assign_entry_cost rho rho' in
 			(* x:=e adds a cost of 1 if (a) rho = E or (2) rho = N and rho' = E *)
 		      let trustedcost = compute_assign_trusted_cost rho rho' in
- 		      let totalcost = (PPlus(entrycost, trustedcost)) in
+ 		      let totalc = (entrycost, trustedcost) in
 		      
 			
 			begin match rho with 
 			 | Normal ->   begin match get_exp_label enclt1 with
-					|Low -> (c7, c6, m5, ms5, genc2, totalcost, EAssign(rho, x, ee))
+					|Low -> (c7, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
 					|Erase(_,_,_)
 					|High -> raise TypeError
 					end
-			 |Enclave -> (c7, c6, m5, ms5, genc2, totalcost, EAssign(rho, x, ee))
+			 |Enclave -> let c9 = Constr.add (rho'', Enclave) c7 in
+					(* Use c6 or c8, does not make difference to solver *)
+					(Constr.add (rho', Enclave) c9, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
 			 |ModeVar y -> begin match get_exp_label enclt1 with
-					(* low is unconstrained *)
-					|Low -> (c7, c6, m5, ms5, genc2, totalcost, EAssign(rho, x, ee))
+					|Low -> (c7, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
 					|Erase(_,_,_)
-					|High -> (Constr.add (rho', Enclave) c7, c6, m5, ms5, genc2, totalcost, EAssign(rho, x, ee))
+					|High -> let c9 = Constr.add (rho'', Enclave) c7 in 
+						(Constr.add (rho', Enclave) c9, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
 					end
 			end
 				
@@ -380,44 +389,47 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 			
 			let entrycost = compute_assign_entry_cost rho rho'' in
 		        let trustedcost = compute_assign_trusted_cost rho rho'' in
- 		        let totalcost = (PPlus(entrycost, trustedcost)) in
+ 		        let totalc = (entrycost, trustedcost) in
 			
 			begin match rho with
 			    |Normal  -> 
-		        		let c8, c9,m6, ms6 = begin match get_exp_label enclt1 with
-					 (* Normal mode should access only normal memory locations *)
-					| Low -> (Constr.add (rho', Normal) c7, c6,ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5)
-					| Erase(_,_,_)
-					| High -> raise TypeError
+		        		let c9, c10,m6, ms6 = begin match get_exp_label enclt1 with
+					(* rho' = E -> rho'' = E *) 
+					| Low -> (c7, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5)
+					| Erase(_,_,_) 
+					| High -> (* p != L -> rho' = rho'' = E *)
+						 let c8 = Constr.add (rho', Enclave) c7 in
+						  (Constr.add (rho'', Enclave) c8, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5)
+	 
 	      				end 
 					in
-					(* rho' = E -> rho'' = E   *)
-					(c8, (Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c9), m6, ms6, genc2, totalcost, EUpdate(rho, ee1, ee2))
+					(c9, c10, m6, ms6, genc2, totalc, EUpdate(rho, ee1, ee2))
 
 			    |Enclave -> 
 		        		let c8, c9, m6, ms6, es = begin match get_exp_label enclt1 with
 					(* A low content location is unconstrained. *)
-					| Low -> (c7, c6,ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2)) 
+					| Low -> (c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2)) 
 					| Erase(_,_,_)
-					| High -> (Constr.add (rho', Enclave) c7, c6,ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2))
+					| High -> 
+						(Constr.add (rho', Enclave) c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2))
 	      				end in
-					 (* rho = E -> rho'' = E. Specifically note that if rho = E does not imply rho'' = E *)            
-				        ((Constr.add (rho'', Enclave) c8), c9, m6, ms6, genc2, totalcost,es)
+					 (* rho = E -> rho'' = E. Specifically note that if rho = E does not imply rho' = E *)            
+				        ((Constr.add (rho'', Enclave) c8), c9, m6, ms6, genc2, totalc,es)
 
 			    |ModeVar y -> 
 					let c8, c9,m6, ms6, es = begin match get_exp_label enclt1 with
-					(* rho = Normal -> rho'= Normal *)
+					(* rho' = Enclave -> rho''= Enclave *)
 					| Low -> 
-						(c7, Constr2.add ((rho, Normal), [(rho', Normal)]) c6, 
+						(c7, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, 
 							ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2))
 					| Erase(_,_,_)
 					| High -> let c8', c9', m6', ms6' = 
-				         (Constr.add (rho, Enclave) c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5 ) in
-						 (Constr.add (rho', Enclave) c8', c9', m6', ms6', EUpdate(rho, ee1, ee2))	
+				         (Constr.add (rho', Enclave) c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5 ) in
+						 (Constr.add (rho'', Enclave) c8', c9', m6', ms6', EUpdate(rho, ee1, ee2))	
 	      				end in
 					 (* rho = E -> rho'' = E and rho' = E -> rho'' = E *) 
 					 let c10 = Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c9 in
-					 (c8, (Constr2.add ((rho, Enclave), [(rho'', Enclave)]) c10),m5, ms5, genc2, totalcost, es)
+					 (c8, (Constr2.add ((rho, Enclave), [(rho'', Enclave)]) c10),m5, ms5, genc2, totalc, es)
 			end 
     |If(e, s1, s2) -> let rho' = next_tvar () in (* for e *)
 		      let rho''= next_tvar () in (* for c1 *)
@@ -428,60 +440,50 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 		      let c1, c2, m1, ms1, genc1, ee = gen_constraints_exp g rho' e genc in
 		      let c3, c4, m2, ms2, genc2, fcost1, es1 = gen_constraints g rho'' s1 genc1 in
 		      let c5, c6, m3, ms3, genc3, fcost2, es2 = gen_constraints g rho''' s2 genc2 in
+		      let fcost3 = (PPlus(fst fcost1, fst fcost2), PPlus(snd fcost1, snd fcost2)) in
+	     	      let totalc = (PPlus(entrycost, fst fcost3), PPlus(trustedcost, snd fcost3)) in
 		      begin match rho with
 			    |Normal ->  
 					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let fcost4 = (PPlus(entrycost, fcost3)) in
- 		        		let totalcost = (PPlus(fcost4, trustedcost)) in
 					 	     (* rho'= E -> rho'' = rho''' = E *)
 						     (c9, (Constr2.add ((rho', Enclave), [(rho'', Enclave);(rho''', Enclave)]) c10), (ModeProgSet.union m m5), 
-								ModeSet.union ms ms5,genc3, totalcost, EIf(rho, ee, es1, es2)) 
+								ModeSet.union ms ms5,genc3, totalc, EIf(rho, ee, es1, es2)) 
 			    |Enclave -> 
 					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
 					let c11     = (Constr.add (rho', Enclave) c9) in
 					let c12     = (Constr.add (rho'', Enclave) c11) in
 					let c13     = (Constr.add (rho''', Enclave) c12) in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let fcost4 = (PPlus(entrycost, fcost3)) in
- 		        		let totalcost = (PPlus(fcost4, trustedcost)) in
-						     ((Constr.add (rho, Enclave) c13), c10, (ModeProgSet.union m m5), ModeSet.union ms ms5, genc3, totalcost, EIf(rho, ee, es1, es2))
+						     ((Constr.add (rho, Enclave) c13), c10, (ModeProgSet.union m m5), ModeSet.union ms ms5, genc3, totalc, EIf(rho, ee, es1, es2))
 			    |ModeVar y -> 
 					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
 							(* rho = E -> rho' = rho''= rho''' = E *)
 							(* rho' = E -> rho''= rho''' = E *)
 					let c11 = (Constr2.add ((rho', Enclave), [ (rho'', Enclave); (rho''', Enclave)]) c10) in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let fcost4 = (PPlus(entrycost, fcost3)) in
- 		        		let totalcost = (PPlus(fcost4, trustedcost)) in
 							(c9, (Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave); (rho''', Enclave)]) c11), (ModeProgSet.union m m5),
-								 ModeSet.union ms ms5, genc3, totalcost, EIf(rho, ee, es1, es2))
+								 ModeSet.union ms ms5, genc3, totalc, EIf(rho, ee, es1, es2))
 			    end	
     |Seq(s1, s2)  -> let rho' = next_tvar () in
 		     let rho'' = next_tvar () in
 		     let entrycost = compute_seq_entry_cost rho rho' rho'' in
 		     let c1, c2, m1, ms1, genc1, fcost1, es1 = gen_constraints g rho' s1 genc in
 		     let c3, c4, m2, ms2, genc2, fcost2, es2 = gen_constraints g rho'' s2 genc1 in
+		     let fcost3 = (PPlus (fst fcost1, fst fcost2), PPlus(snd fcost1, snd fcost2)) in
+			(* No trusted cost *)
+		     let totalc = (PPlus (fst fcost3, entrycost), snd fcost3) in
 			begin match rho with
 			    |Normal -> 
 					let m3, ms3        = (ModeProgSet.union m1 m2, ModeSet.union ms1 ms2) in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let totalcost = PPlus (entrycost, fcost3) in (* Note that for sequence, we don't add any trusted cost because it is not atomic *)
-						    ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, ESeq(rho, es1, es2) )
+						    ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2) )
 			    |Enclave-> 
 			               let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 				       let c7	  =  Constr.add (rho', Enclave) c5 in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let totalcost = PPlus (entrycost, fcost3) in (* Note that for sequence, we don't add any trusted cost because it is not atomic *)
-						    (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, ESeq(rho, es1, es2))
+						    (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2))
 			    |ModeVar x -> 
                                        let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let fcost3 = (PPlus(fcost1, fcost2)) in
-					let totalcost = PPlus (entrycost, fcost3) in (* Note that for sequence, we don't add any trusted cost because it is not atomic *)
-				       		    (c5, Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, ESeq(rho, es1, es2))
+				       		    (c5, Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2))
 			end
     |Call e -> let rho' = next_tvar () in
 			let c1, c2, m1, ms1, genc1, ee = gen_constraints_exp g rho' e genc in
@@ -491,15 +493,15 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 			let entrycost = compute_assign_entry_cost rho rho' in
 		        let trustedcost = compute_assign_trusted_cost rho rho' in
 			(*FIXME: Add cost of function here *)
-			let totalcost = PPlus(entrycost, trustedcost) in
+			let totalc = (entrycost, trustedcost) in
 			begin match rho with
 					(* rho' = rho'' *)
-			  | Normal  -> (Constr.add (rho', rho'') c1, c2, m2 , ModeSet.add rho'' ms2, genc1, totalcost, ECall(rho, ee))
+			  | Normal  -> (Constr.add (rho', rho'') c1, c2, m2 , ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
 			  | Enclave -> let c3 = (Constr.add (rho', Enclave) c1) in
-						(Constr.add (rho', rho'') c3, c2, m2, ModeSet.add rho'' ms2, genc1, totalcost, ECall(rho, ee))
+						(Constr.add (rho', rho'') c3, c2, m2, ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
 			  | ModeVar x -> 
 						 (* rho = E -> rho ' = E *)
-					 	 (Constr.add (rho', rho'') c1, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) c2), m2, ModeSet.add rho'' ms2, genc1, totalcost, ECall(rho, ee))
+					 	 (Constr.add (rho', rho'') c1, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) c2), m2, ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
 			end 
    |While(e, s) -> let rho' = next_tvar () in
    		   let rho'' = next_tvar () in
@@ -508,49 +510,47 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 		   let trustedcost = compute_assign_trusted_cost rho rho'' in (* Note that the trusted cost function gets simplified to this *)
 		   let c1, c2, m1, ms1, genc1, ee = gen_constraints_exp g rho' e genc in
 		   let c3, c4, m2, ms2, genc2, fcost1, es = gen_constraints g rho'' s genc1 in
+		   let totalc = (PPlus (fst fcost1, entrycost), PPlus (snd fcost1, trustedcost)) in
 			   begin match rho with
 			   |Normal   -> 
 					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let fcost2 = (PPlus (entrycost, fcost1)) in
-					let totalcost = (PPlus (trustedcost, fcost2)) in
 						     (* rho'=E -> rho'' = E *)
-			    (c5, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, EWhile(rho, ee, es))  
+			    (c5, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es))  
 			   |Enclave  -> 
 					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 					let c7     = Constr.add (rho', Enclave) c5 in
-					let fcost2 = (PPlus (entrycost, fcost1)) in
-					let totalcost = (PPlus (trustedcost, fcost2)) in
 						     (* rho = E -> rho' = rho'' = E *)
-						     (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, EWhile(rho, ee, es)) 
+						     (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es)) 
 			   |ModeVar x -> 
 					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
 						     (* rho = E -> rho' = rho'' = E *)
 						     (* rho' = E -> rho'' = E *)
                                         let  c7 =    Constr2.add ((rho, Enclave),[(rho', Enclave); (rho'', Enclave)]) c6 in         
-					let fcost2 = (PPlus (entrycost, fcost1)) in
-					let totalcost = (PPlus (trustedcost, fcost2)) in
-						     (c5, Constr2.add ((rho', Enclave),[(rho'', Enclave)]) c7, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalcost, EWhile(rho, ee, es))
+						     (c5, Constr2.add ((rho', Enclave),[(rho'', Enclave)]) c7, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es))
 			   end
     |Output(x, e) -> let rho' = next_tvar () in
 		     let entrycost = compute_assign_entry_cost rho rho' in 
 		     let trustedcost = compute_assign_trusted_cost rho rho' in 
-		     let totalcost = PPlus(entrycost, trustedcost) in
+		     let totalc = (entrycost, trustedcost) in
 	             let c1, c2, m1, ms1, genc1, ee = gen_constraints_exp g rho' e genc in
 			  begin match rho with
 			  | Normal   -> 
 					begin match x with
-					| 'H'  -> (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalcost, EOutput(rho, x, ee))
-					|_     -> (c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalcost, EOutput(rho, x, ee))
+					| 'H'  -> (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
+					|_     -> (c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
 					end
 			 | Enclave  -> 
-				       (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalcost, EOutput(rho, x, ee))
+				       (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
 			 | ModeVar y -> 
 					let c3 = (Constr2.add ((rho, Enclave), [(rho', Enclave)]) c2) in
 					begin match x with
-					|'H' -> (Constr.add (rho', Enclave) c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalcost, EOutput(rho, x, ee))
-					| _  -> (c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalcost, EOutput(rho, x, ee))
+					|'H' -> (Constr.add (rho', Enclave) c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
+					| _  -> (c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
 					end 
 			end
     | Set x	-> let rho' = next_tvar () in (* x is always low for a well-typed source program *)
-			(Constr.empty, Constr2.empty, m, ModeSet.add rho' ms, genc, (PMonoterm (1, Mono rho)), ESet(rho, x))
+		      let entrycost = compute_assign_entry_cost rho rho' in
+		      let trustedcost = compute_assign_trusted_cost rho rho' in
+ 		      let totalc = (entrycost, trustedcost) in
+				(Constr.empty, Constr2.empty, m, ModeSet.add rho' ms, genc, totalc, ESet(rho, x))
     | _ -> raise UnimplementedError

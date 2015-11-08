@@ -12,9 +12,9 @@ let incline lexbuf =
 }
 
 let digit = ['0'-'9']
-let id = ['a'-'z'] ['a'-'z' '0'-'9']*
+let id = ['a'-'z'] ['a'-'z' '0'-'9' '-']*
 let ws = [' ' '\t']
-let location =['l']['0'-'9']['0'-'9']* 
+let location =['l']['0'-'9']* 
 
 rule token = parse
 | ws      { token lexbuf }
