@@ -80,7 +80,7 @@ Remaining Conditional Constraints:
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
-c version 2.3.5.v20130525
+c version NIGHTLY.v20151101
 c java.runtime.name	Java(TM) SE Runtime Environment
 c java.vm.name		Java HotSpot(TM) 64-Bit Server VM
 c java.vm.version	25.20-b23
@@ -90,85 +90,80 @@ c java.version		1.8.0_20
 c os.name		Mac OS X
 c os.version		10.10.5
 c os.arch		x86_64
-c Free memory 		252047584
+c Free memory 		252055968
 c Max memory 		3817865216
 c Total memory 		257425408
 c Number of processors 	8
 c Pseudo Boolean Optimization by upper bound
-c c --- Begin Solver configuration ---
-c org.sat4j.pb.constraints.CompetResolutionPBLongMixedWLClauseCardConstrDataStructure@5910e440
+c --- Begin Solver configuration ---
+c org.sat4j.pb.constraints.CompetResolutionPBLongMixedWLClauseCardConstrDataStructure@41906a77
 c Learn all clauses as in MiniSAT
 c claDecay=0.999 varDecay=0.95 conflictBoundIncFactor=1.5 initConflictBound=100 
 c VSIDS like heuristics from MiniSAT using a heap lightweight component caching from RSAT taking into account the objective function
 c No reason simplification
 c Glucose 2.1 dynamic restart strategy
-c Glucose 2 learned constraints deletion strategy
+c Glucose 2 learned constraints deletion strategy (LBD updated on propagation) with timer check every 1000 if the learned constraints reach increasing bounds: 5000 step 1000
 c timeout=2147483s
 c DB Simplification allowed=false
-c Listener: org.sat4j.minisat.core.VoidTracing@533ddba
+c Listener: org.sat4j.minisat.core.VoidTracing@5387f9e0
 c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
-c ... done. Wall clock time 0.015s.
+c  objective function found
+c ... done. Wall clock time 0.014s.
 c declared #vars     17
 c internal #vars     35
-c #constraints  57
+c #constraints  59
 c constraints type 
 c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 20
 c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 18
 c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 18
-c ignored satisfied constraints => 3
+c org.sat4j.specs.Constr$1 => 2
+c ignored satisfied constraints => 1
 c org.sat4j.minisat.constraints.cnf.UnitClause => 1
 c 60 constraints processed.
 c objective function length is 33 literals
 c SATISFIABLE
 c OPTIMIZING...
-c Got one! Elapsed wall clock time (in seconds):0.018
+c Got one! Elapsed wall clock time (in seconds):0.017
 o 9
-c Got one! Elapsed wall clock time (in seconds):0.02
+c Got one! Elapsed wall clock time (in seconds):0.019
 o 6
 c Got one! Elapsed wall clock time (in seconds):0.02
 o 3
 c Got one! Elapsed wall clock time (in seconds):0.021
 o 0
 c starts		: 5
-c conflicts		: 20
+c conflicts		: 19
 c decisions		: 41
-c propagations		: 301
-c inspects		: 760
+c propagations		: 298
+c inspects		: 743
 c shortcuts		: 0
 c learnt literals	: 1
-c learnt binary clauses	: 3
+c learnt binary clauses	: 2
 c learnt ternary clauses	: 1
-c learnt constraints	: 18
+c learnt constraints	: 17
 c ignored constraints	: 0
 c root simplifications	: 0
 c removed literals (reason simplification)	: 0
 c reason swapping (by a shorter reason)	: 0
 c Calls to reduceDB	: 0
-c Number of update (reduction) of LBD	: 1
+c Number of update (reduction) of LBD	: 0
 c Imported unit clauses	: 0
 c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 50166.666666666664
+c speed (assignments/second)	: 49666.666666666664
 c non guided choices	6
 c learnt constraints type 
-c constraints type 
-c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 20
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 18
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 18
-c ignored satisfied constraints => 3
-c org.sat4j.minisat.constraints.cnf.UnitClause => 1
-c 60 constraints processed.
 s OPTIMUM FOUND
 c Found 4 solution(s)
-v -x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 -x16 -x17 
+v -x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 x16 -x17 
 c objective function=0
-c Total wall clock time (in seconds): 0.024
-Position: 3099
-V Position: 3135
-C Position: 3214
--x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 -x16 -x17 
+c Total wall clock time (in seconds): 0.023
+Position: 2975
+V Position: 3011
+C Position: 3089
+-x1 -x2 -x3 -x4 -x5 -x6 -x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 -x15 x16 -x17 
 

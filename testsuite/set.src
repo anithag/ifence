@@ -1,2 +1,2 @@
-x:int_low
+x:cond_low
 set(x);skip
