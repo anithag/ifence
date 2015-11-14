@@ -7,6 +7,7 @@ exception TypeNotFoundError
 exception TypeNotFoundError1 
 exception UnificationError
 exception UnimplementedError
+exception EmptySeqError
 
 (* [unify c0] solves [c0] (if possible), yielding a substitution. Raise UnificationError if constraints cannot be unified. *)
 let rec unify (c0:constr) : subst = 
@@ -197,7 +198,7 @@ let rec get_exp_label lt = (snd lt)
 
 let rec gen_constraints_type (s1: enclabeltype) (s2:enclabeltype) = 
    match (s1, s2) with
-   |(EBtRef(m1,s1'), p), (EBtRef( m2, s2'), q) -> let t1 = gen_constraints_type s1' s2' in  [(m1, m2)]@ t1 (*FIX ME: Return type *)
+   |(EBtRef(m1,s1'), p), (EBtRef( m2, s2'), q) -> let t1 = gen_constraints_type s1' s2' in  [(m1, m2)]@t1 (*FIX ME: Return type *)
    |(EBtFunc(m1, p1, u1), q1), (EBtFunc(m2, p2, u2), q2) -> [(m1, m2)]
    | _ -> []
      
@@ -241,9 +242,8 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
 	      begin match rho with 
 		| Normal ->
 			begin match get_exp_label creftype with
-					 (* Normal mode should access only normal memory locations *)
 				| Low -> 
-			      ((Constr.add (rho', Normal) Constr.empty), Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))
+			      (Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))
 				| Erase(_,_,_)
 				| High -> raise TypeError
 	      		end
@@ -254,17 +254,16 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
 				| Erase(_,_,_)
 				| High -> 
 						let c1, c2, m1, ms1 = 
-				(Constr.add (rho, Enclave) Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
+				(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
 						(Constr.add (rho', Enclave) c1, c2, m1, ms1, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))	
 	      		end
 		| ModeVar y ->
 			begin match get_exp_label creftype with
-					(* rho = Normal -> rho'= Normal *)
 				| Low -> 
-(Constr.empty, Constr2.add ((rho, Normal), [(rho', Normal)]) Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho',l) )
+(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho',l) )
 				| Erase(_,_,_)
 				| High -> let c1, c2, m1, ms1 = 
-				(Constr.add (rho, Enclave) Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
+				(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
 					 (Constr.add (rho', Enclave) c1, c2, m1, ms1, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))	
 	      		end
 	       end
@@ -303,11 +302,17 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
 			 | High -> let c6 = (Constr.add (rho, Enclave) c4) in
 					(Constr.add (rho', Enclave) c6, c5, m2, ms2, genc2,scost, ELam(rho,rho',p,u,q,es))
 		         end
-    |Deref e	->  let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho e genc in
-			begin match get_exp_label (get_exp_type g e) with
-			| Low  -> (c1, c2, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1, ecost, EDeref(rho,ee))
+    |Deref e1	->  let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho e1 genc in
+		    let enclt =	get_enc_exp_type ee genc1  in
+		    let rho' = get_mode enclt in
+		    let loctype = get_exp_type g e in
+			(* rho = N -> rho' = N *)
+		    let c3 = Constr2.add ((rho, Normal), [(rho', Normal)]) c2 in
+			begin match get_exp_label loctype  with
+			| Low  -> (c1, c3, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1, ecost, EDeref(rho,ee))
 			| Erase(_,_,_)
-			| High -> (Constr.add (rho, Enclave) c1, c2, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1,ecost, EDeref(rho,ee))
+			| High -> let c4 = Constr.add (rho, Enclave) c1 in
+					(Constr.add (rho', Enclave) c4, c3, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1,ecost, EDeref(rho,ee))
 			end  
     |True	-> (Constr.empty, Constr2.empty, m, ms, genc, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))),ETrue rho )
     |False-> (Constr.empty, Constr2.empty, m, ms, genc,(PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EFalse rho )
@@ -474,26 +479,28 @@ and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr
 							(c9, (Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave); (rho''', Enclave)]) c11), (ModeProgSet.union m m5),
 								 ModeSet.union ms ms5, genc3, totalc, EIf(rho, ee, es1, es2))
 			    end	
-    |Seq(s1, s2)  -> let rho' = next_tvar () in
-		     let rho'' = next_tvar () in
-		     let entrycost = compute_seq_entry_cost rho rho' rho'' in
-		     let c1, c2, m1, ms1, genc1, fcost1, es1 = gen_constraints g rho' s1 genc in
-		     let c3, c4, m2, ms2, genc2, fcost2, es2 = gen_constraints g rho'' s2 genc1 in
-		     let fcost3 = (PPlus (fst fcost1, fst fcost2), PPlus(snd fcost1, snd fcost2)) in
-			(* No trusted cost *)
-		     let totalc = (PPlus (fst fcost3, entrycost), snd fcost3) in
-			begin match rho with
-			    |Normal -> 
-					let m3, ms3        = (ModeProgSet.union m1 m2, ModeSet.union ms1 ms2) in
-						    ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2) )
-			    |Enclave-> 
-			               let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-				       let c7	  =  Constr.add (rho', Enclave) c5 in
-						    (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2))
-			    |ModeVar x -> 
-                                       let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-				       		    (c5, Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, ESeq(rho, es1, es2))
-			end
+    |Seq(s1, s2)  -> let seqlist = flattenseq s0 in
+		     let rec seqloop c1 c2 m ms scost g genc eslist = function
+			| [] -> (c1, c2, m, ms, genc, scost, eslist)
+			| xs::tail -> let rho' = next_tvar () in
+				    let c3, c4, m1, ms1, genc1, scost1, es1 = gen_constraints g rho' xs genc in
+				    let totalc = (PPlus (fst scost, fst scost1), PPlus (snd scost, snd scost1)) in
+				    seqloop (Constr.union c1 c3) (Constr2.union c2 c4) (ModeProgSet.union m m1) (ModeSet.union ms ms1) totalc g genc1 (eslist @ [es1]) tail
+		     in
+			(* initially zero cost, compute later *)
+		     let zerocost = (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))) in 
+		     let c1, c2, m1, ms1, genc1, fcost, eslist = seqloop Constr.empty Constr2.empty m ms zerocost  g genc [] seqlist in
+		     (* compute additional entry cost *)
+		     let rho1 = begin match eslist with
+				|[] -> raise EmptySeqError
+				|xs::tail-> getstmtmode xs
+				end in
+		     (* init statement cost. e.g., c1;c2;c3..., then initcost gets entry cost for c1 as (1-rho)rho1 *)
+		     let initcost = (PMinus (PMonoterm (1, Mono rho), (PMonoterm (1, (Poly (rho, (Mono rho1))))))) in
+		     let seqentrycost = compute_seq_entry_cost eslist rho initcost in
+		     let totalc = (PPlus (fst fcost, seqentrycost), snd fcost) in
+		     let es = (EESeq (rho, eslist)) in
+		     (c1, c2, m1, ms1, genc1, totalc, es) 	
     |Call e -> let rho' = next_tvar () in
 			let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho' e genc in
 			let m2, ms2 = (ModeProgSet.union m m1, ModeSet.union ms ms1) in

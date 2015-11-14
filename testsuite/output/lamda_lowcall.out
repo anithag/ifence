@@ -1,15 +1,22 @@
-if x == 0 then y := (lambda^0(_,_).z := z + 1 )  else y := (lambda^0(_,_).z := z + 2 ) 
-;
-call(y)
+
+if x == 0 then y := (lambda^0(_,_).z := z + 1 )  else y := (lambda^0(_,_).z := z + 2 ) ;
+
+call(y);
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+
  
  
  	 FUNCTION 
  	 =========
  lambda^0(_,_).
- 0|- z := z + 2 	
+ z := z + 2 
  
  
  	 FUNCTION 
  	 =========
  lambda^0(_,_).
- 0|- z := z + 1 	
+ z := z + 1 

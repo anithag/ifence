@@ -65,13 +65,13 @@ exp : bexp 				{ $1 }
     | aexp 				{ $1 }
     | lexp                              { $1 }
     | DEREF exp				{ Deref($2) }
-    | ISUNSET LPAREN VAR RPAREN		{ Isunset($3) }
 
 lexp : LPAREN LAMBDA LPAREN policy COMMA Uset RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($4, $6, $12, $9) }
  
 bexp: TRUE			   { True  }
     | FALSE                        { False }
     | aexp EQUALS aexp		   { Eq($1, $3) }
+    | ISUNSET LPAREN VAR RPAREN    { Isunset($3) }
 
 aexp: VAR                          { Var $1}
     | INTEGER                      { Constant($1) }

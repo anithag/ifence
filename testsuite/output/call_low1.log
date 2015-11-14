@@ -1,41 +1,6 @@
 Gammasrc:
   (x) : (int)_l  (l1000) : (func(h, {  })_l  ref)_l  
 
-Program:
-  call(*l1000)
-
-Gammaenc:
-  (l1000) : (func^x4 (h, {  })_l ref^x3)_l  
-
-Translation:
-  x1  |- call(*l1000^x3 )
-
-Constraints:
-  
-  x1 = Normal
-  x2 = x4
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), 
-
-  x2 = Normal -> (x3 = Normal), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x2 :  x4
-  x3 :  x3
-  x4 :  x4
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), 
-
-  x2 = Normal -> (x3 = Normal), 
-
-
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
@@ -69,7 +34,7 @@ c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
 c  objective function found
-c ... done. Wall clock time 0.01s.
+c ... done. Wall clock time 0.012s.
 c declared #vars     4
 c internal #vars     5
 c #constraints  7
@@ -84,7 +49,7 @@ c 8 constraints processed.
 c objective function length is 3 literals
 c SATISFIABLE
 c OPTIMIZING...
-c Got one! Elapsed wall clock time (in seconds):0.013
+c Got one! Elapsed wall clock time (in seconds):0.015
 o 0
 c starts		: 1
 c conflicts		: 0
@@ -114,9 +79,12 @@ s OPTIMUM FOUND
 c Found 1 solution(s)
 v -x1 -x2 -x3 -x4 
 c objective function=0
-c Total wall clock time (in seconds): 0.015
-Position: 2774
-V Position: 2810
-C Position: 2829
+c Total wall clock time (in seconds): 0.017
+Position: 2775
+V Position: 2811
+C Position: 2830
 -x1 -x2 -x3 -x4 
+
+Program:
+  call(*l1000)
 

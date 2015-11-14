@@ -79,6 +79,7 @@ and  encstmt =
   |EAssign of mode * var * encexp
   |EUpdate of mode * encexp * encexp
   |ESeq of mode * encstmt * encstmt
+  |EESeq of mode * (encstmt list)
   |EWhile of mode * encexp * encstmt
   |EOutput of mode* channel * encexp
   |ECall of mode * encexp

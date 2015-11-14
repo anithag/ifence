@@ -1,3 +1,10 @@
+
 y := 10 ;
+
 skip;
-enclave( x := 100 )
+enclave( x := 100  ;
+   )
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 

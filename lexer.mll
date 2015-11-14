@@ -33,6 +33,7 @@ rule token = parse
 | "=="     { EQUALS }
 | "true"  { TRUE } 
 | "false" { FALSE }
+| "isunset" {ISUNSET}
 | "skip"  { SKIP }
 | "if"    { IF }
 | "then"  { THEN }

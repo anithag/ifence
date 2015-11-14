@@ -8,271 +8,17 @@ Gammasrc:
 Program:
   guess-loc:= l1 ;
    l3 <- lambda. (guess-loc <- 42;  guess-hash:= *guess-loc  );
-    while true do
-    make-a-guess:= l3 ;
-     call(*make-a-guess);
-      orig-hash-loc:= l2 ;
-       orig-hash:= *orig-hash-loc ;
-        l4 <-
-        lambda.
-          (if (orig-hash == guess-hash) then  output( H,  1) 
-           else  output( H,  0)   fi);
-         authenticate:= l4 ;  call(*authenticate)       end;
-     skip   
-
-Gammaenc:
-  (authenticate) : (func^x60 (h, {  })_h ref^x59)_l  (guess-hash) : (int)_h  
-  (guess-loc) : ((int)_h  ref^x7)_l  (make-a-guess) : (func^x29 (h, {  })_l ref^x28)_l  
-  (orig-hash) : (int)_h  (orig-hash-loc) : ((int)_h  ref^x38)_l  (l1) : 
-                                                                 ((int)_h  ref^x6)_l  
-  (l2) : ((int)_h  ref^x37)_l  (l3) : (func^x12 (h, {  })_l ref^x11)_l  
-  (l4) : (func^x47 (h, {  })_l ref^x46)_l  
-
-Translation:
-   x1  |-  x2 |-  guess-loc:= l1^x6  ;
-    x3  |-  x8 |- l3^x11  <-
-           lambda^x13(h, _).( x14  |-  x15 |- guess-loc <- 42;
-                               x16 |-  guess-hash:= *guess-loc  )_l;
-     x9  |- x20|- while true do
-             x23  |-  x24 |-  make-a-guess:= l3^x11  ;
-              x25  |- x30  |- call(*make-a-guess);
-               x31  |-  x33 |-  orig-hash-loc:= l2^x37  ;
-                x34  |-  x39 |-  orig-hash:= *orig-hash-loc ;
-                 x40  |-  x43 |- l4^x46  <-
-                         lambda^x48(h, _).(x49 |- if
-                                           (orig-hash == guess-hash)
-                                           then   x51 |- output( H,  1) 
-                                           else   x52 |- output( H,  0)   fi)_l;
-                  x44  |-  x55 |-  authenticate:= l4^x46  ;
-                  x56  |- call(*authenticate)       end;
-      x62 |- skip    
-
-Constraints:
-  
-  x1 = Normal
-  x10 = x13
-  x12 = x13
-  x13 = x14
-  x17 = Enclave
-  x18 = Enclave
-  x19 = Enclave
-  x28 = x11
-  x29 = x12
-  x32 = x29
-  x35 = Enclave
-  x37 = Enclave
-  x38 = x37
-  x4 = Enclave
-  x41 = Enclave
-  x42 = Enclave
-  x45 = x48
-  x47 = x48
-  x48 = x49
-  x50 = Enclave
-  x53 = Enclave
-  x54 = Enclave
-  x59 = x46
-  x6 = Enclave
-  x60 = x47
-  x61 = x60
-  x7 = Enclave
-  x7 = x6
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x10 = Normal -> (x11 = Normal), 
-
-  x11 = Enclave -> (x10 = Enclave), 
-
-  x14 = Enclave -> (x15 = Enclave), (x16 = Enclave), 
-
-  x15 = Enclave -> (x17 = Enclave), 
-
-  x16 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x20 = Enclave -> (x22 = Enclave), (x23 = Enclave), 
-
-  x21 = Enclave -> (x62 = Enclave), 
-
-  x22 = Enclave -> (x23 = Enclave), 
-
-  x23 = Enclave -> (x24 = Enclave), (x25 = Enclave), 
-
-  x24 = Enclave -> (x26 = Enclave), (x27 = Enclave), 
-
-  x25 = Enclave -> (x30 = Enclave), (x31 = Enclave), 
-
-  x26 = Normal -> (x11 = Normal), 
-
-  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x30 = Enclave -> (x32 = Enclave), 
-
-  x31 = Enclave -> (x33 = Enclave), (x34 = Enclave), 
-
-  x33 = Enclave -> (x35 = Enclave), (x36 = Enclave), 
-
-  x34 = Enclave -> (x39 = Enclave), (x40 = Enclave), 
-
-  x39 = Enclave -> (x41 = Enclave), (x42 = Enclave), 
-
-  x40 = Enclave -> (x43 = Enclave), (x44 = Enclave), 
-
-  x43 = Enclave -> (x45 = Enclave), 
-
-  x44 = Enclave -> (x55 = Enclave), (x56 = Enclave), 
-
-  x45 = Normal -> (x46 = Normal), 
-
-  x46 = Enclave -> (x45 = Enclave), 
-
-  x49 = Enclave -> (x50 = Enclave), (x51 = Enclave), (x52 = Enclave), 
-
-  x50 = Enclave -> (x51 = Enclave), (x52 = Enclave), 
-
-  x51 = Enclave -> (x53 = Enclave), 
-
-  x52 = Enclave -> (x54 = Enclave), 
-
-  x55 = Enclave -> (x57 = Enclave), (x58 = Enclave), 
-
-  x56 = Enclave -> (x61 = Enclave), 
-
-  x57 = Normal -> (x46 = Normal), 
-
-  x7 = Enclave -> (x17 = Enclave), 
-
-  x8 = Enclave -> (x10 = Enclave), 
-
-  x9 = Enclave -> (x20 = Enclave), (x21 = Enclave), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x10 :  x14
-  x11 :  x11
-  x13 :  x14
-  x14 :  x14
-  x15 :  x15
-  x16 :  x16
-  x17 :  Enclave
-  x18 :  Enclave
-  x19 :  Enclave
-  x2 :  x2
-  x20 :  x20
-  x21 :  x21
-  x22 :  x22
-  x23 :  x23
-  x24 :  x24
-  x25 :  x25
-  x26 :  x26
-  x27 :  x27
-  x29 :  x14
-  x3 :  x3
-  x30 :  x30
-  x31 :  x31
-  x32 :  x14
-  x33 :  x33
-  x34 :  x34
-  x35 :  Enclave
-  x36 :  x36
-  x37 :  Enclave
-  x39 :  x39
-  x4 :  Enclave
-  x40 :  x40
-  x41 :  Enclave
-  x42 :  Enclave
-  x43 :  x43
-  x44 :  x44
-  x45 :  x49
-  x46 :  x46
-  x48 :  x49
-  x49 :  x49
-  x5 :  x5
-  x50 :  Enclave
-  x51 :  Enclave
-  x52 :  Enclave
-  x53 :  Enclave
-  x54 :  Enclave
-  x55 :  x55
-  x56 :  x56
-  x57 :  x57
-  x58 :  x58
-  x6 :  Enclave
-  x60 :  x49
-  x61 :  x49
-  x8 :  x8
-  x9 :  x9
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x10 = Normal -> (x11 = Normal), 
-
-  x11 = Enclave -> (x10 = Enclave), 
-
-  x14 = Enclave -> (x15 = Enclave), (x16 = Enclave), 
-
-  x15 = Enclave -> (x17 = Enclave), 
-
-  x16 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x20 = Enclave -> (x22 = Enclave), (x23 = Enclave), 
-
-  x21 = Enclave -> (x62 = Enclave), 
-
-  x22 = Enclave -> (x23 = Enclave), 
-
-  x23 = Enclave -> (x24 = Enclave), (x25 = Enclave), 
-
-  x24 = Enclave -> (x26 = Enclave), (x27 = Enclave), 
-
-  x25 = Enclave -> (x30 = Enclave), (x31 = Enclave), 
-
-  x26 = Normal -> (x11 = Normal), 
-
-  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x30 = Enclave -> (x32 = Enclave), 
-
-  x31 = Enclave -> (x33 = Enclave), (x34 = Enclave), 
-
-  x33 = Enclave -> (x35 = Enclave), (x36 = Enclave), 
-
-  x34 = Enclave -> (x39 = Enclave), (x40 = Enclave), 
-
-  x39 = Enclave -> (x41 = Enclave), (x42 = Enclave), 
-
-  x40 = Enclave -> (x43 = Enclave), (x44 = Enclave), 
-
-  x43 = Enclave -> (x45 = Enclave), 
-
-  x44 = Enclave -> (x55 = Enclave), (x56 = Enclave), 
-
-  x45 = Normal -> (x46 = Normal), 
-
-  x46 = Enclave -> (x45 = Enclave), 
-
-  x49 = Enclave -> (x50 = Enclave), (x51 = Enclave), (x52 = Enclave), 
-
-  x55 = Enclave -> (x57 = Enclave), (x58 = Enclave), 
-
-  x56 = Enclave -> (x61 = Enclave), 
-
-  x57 = Normal -> (x46 = Normal), 
-
-  x8 = Enclave -> (x10 = Enclave), 
-
-  x9 = Enclave -> (x20 = Enclave), (x21 = Enclave), 
-
+    l4 <-
+    lambda.
+      (if (orig-hash == guess-hash) then  output( H,  1) 
+       else  output( H,  0)   fi);
+     authenticate:= l4 ;
+      while true do
+      make-a-guess:= l3 ;
+       call(*make-a-guess);
+        orig-hash-loc:= l2 ;
+         orig-hash:= *orig-hash-loc ;  call(*authenticate)     end;
+       skip;  skip      
 
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
@@ -307,54 +53,60 @@ c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
 c  objective function found
-c ... done. Wall clock time 0.02s.
-c declared #vars     62
-c internal #vars     126
-c #constraints  233
+c ... done. Wall clock time 0.016s.
+c declared #vars     57
+c internal #vars     85
+c #constraints  137
 c constraints type 
-c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 64
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 64
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 64
-c org.sat4j.specs.Constr$1 => 24
-c ignored satisfied constraints => 6
-c org.sat4j.minisat.constraints.cnf.UnitClause => 17
-c 239 constraints processed.
-c objective function length is 117 literals
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 40
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 28
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 28
+c org.sat4j.specs.Constr$1 => 21
+c ignored satisfied constraints => 13
+c org.sat4j.minisat.constraints.cnf.UnitClause => 20
+c 150 constraints processed.
+c objective function length is 72 literals
 c SATISFIABLE
 c OPTIMIZING...
+c Got one! Elapsed wall clock time (in seconds):0.02
+o 14
 c Got one! Elapsed wall clock time (in seconds):0.023
-o 16
-c starts		: 2
-c conflicts		: 135
-c decisions		: 146
-c propagations		: 2265
-c inspects		: 6276
+o 9
+c Got one! Elapsed wall clock time (in seconds):0.025
+o 7
+c Got one! Elapsed wall clock time (in seconds):0.027
+o 6
+c starts		: 5
+c conflicts		: 50
+c decisions		: 111
+c propagations		: 962
+c inspects		: 1725
 c shortcuts		: 0
-c learnt literals	: 4
+c learnt literals	: 5
 c learnt binary clauses	: 2
 c learnt ternary clauses	: 1
-c learnt constraints	: 130
+c learnt constraints	: 44
 c ignored constraints	: 0
 c root simplifications	: 0
 c removed literals (reason simplification)	: 0
 c reason swapping (by a shorter reason)	: 0
 c Calls to reduceDB	: 0
-c Number of update (reduction) of LBD	: 0
+c Number of update (reduction) of LBD	: 5
 c Imported unit clauses	: 0
 c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 141562.5
-c non guided choices	2
+c speed (assignments/second)	: 96200.0
+c non guided choices	12
 c learnt constraints type 
 s OPTIMUM FOUND
-c Found 1 solution(s)
-v -x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 -x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 -x28 x29 x30 x31 x32 x33 x34 x35 x36 x37 x38 x39 x40 x41 x42 x43 x44 x45 -x46 x47 x48 x49 x50 x51 x52 x53 x54 x55 x56 x57 x58 -x59 x60 x61 x62 
-c objective function=16
-c Total wall clock time (in seconds): 0.039
-Position: 2803
-V Position: 2839
-C Position: 3086
--x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 -x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 -x28 x29 x30 x31 x32 x33 x34 x35 x36 x37 x38 x39 x40 x41 x42 x43 x44 x45 -x46 x47 x48 x49 x50 x51 x52 x53 x54 x55 x56 x57 x58 -x59 x60 x61 x62 
+c Found 4 solution(s)
+v -x1 -x2 -x3 x4 x5 x6 -x7 -x8 -x9 -x10 -x11 -x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 -x29 -x30 x31 x32 x33 -x34 -x35 -x36 -x37 -x38 x39 -x40 -x41 -x42 -x43 -x44 -x45 -x46 x47 x48 x49 x50 x51 x52 x53 -x54 -x55 -x56 -x57 
+c objective function=6
+c Total wall clock time (in seconds): 0.03
+Position: 2973
+V Position: 3009
+C Position: 3258
+-x1 -x2 -x3 x4 x5 x6 -x7 -x8 -x9 -x10 -x11 -x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 -x29 -x30 x31 x32 x33 -x34 -x35 -x36 -x37 -x38 x39 -x40 -x41 -x42 -x43 -x44 -x45 -x46 x47 x48 x49 x50 x51 x52 x53 -x54 -x55 -x56 -x57 
 

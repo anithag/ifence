@@ -68,6 +68,7 @@ and printEncStmt' ppf  = function
   | ESkip (m, m') -> printESkip m'
   | EOutput(m,ch, e) -> printEOutput m ch printEncExp' e
   | ESet(m,x)	-> printESet m x
+  | EESeq(m, eslist) -> ()
 
 and printEncExp' ppf = function
   | EVar(rho, v) -> ident v
@@ -230,6 +231,24 @@ let printSingleCondConstraint oc (a, b) =
 			| _    -> raise Not_found (* We don't have constraints of this form *)
 			end
 |(ModeVar x, ModeVar y) -> raise Not_found (* We don't have constraints of this form *)
+
+let printusetchannel oc u = let _ = VarSet.fold (fun el oc -> Printf.fprintf oc "%s, " el; oc )  u oc in ()
+
+
+let printLabelChannel oc = function
+  | Low -> Printf.fprintf oc "l"
+  | High ->Printf.fprintf oc "h"
+  | Erase(l, c, h) -> Printf.fprintf oc  "l ->%s  h]" c
+
+let rec printEncTypChannel oc (lt, rhomap)  = match lt with
+  | (b, l) -> begin match b with
+	  		| EBtInt -> Printf.fprintf oc "(int)_%a " printLabelChannel l 
+ 			| EBtBool -> Printf.fprintf oc "(bool)_%a " printLabelChannel l
+			| EBtCond -> Printf.fprintf oc "(cond)_%a " printLabelChannel l
+			| EBtRef(m,lt') -> Printf.fprintf oc "(%a ref^%d)_%a " printEncTypChannel (lt', rhomap) (ModeSAT.find  m rhomap) printLabelChannel l
+			| EBtFunc(m, p, u)-> Printf.fprintf oc "func^%d@ (%a, { %a })_%a" (ModeSAT.find m rhomap) printLabelChannel p printusetchannel u printLabelChannel l
+			end
+  | _ -> raise Not_found
 
 let printCondConstraint oc c =
  let l = (snd c) in

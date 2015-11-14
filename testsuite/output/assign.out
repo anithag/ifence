@@ -1,5 +1,14 @@
-enclave( z <- 22 );
+enclave( z <- 22 ;
+   )
 y1 := 11 ;
+enclave( x := 33  ;
+   )
 y2 := 12 ;
+
 y3 := 14 ;
-enclave( x := 33 )
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+z: ((int)_h  ref^1)_h 

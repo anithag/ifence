@@ -1,3 +1,11 @@
+
 x := 10 ;
+
 skip;
-enclave( l1000 <- x )
+enclave( l1000 <- x ;
+   )
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+l1000: ((int)_h  ref^1)_l 

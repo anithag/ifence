@@ -1,59 +1,6 @@
 Gammasrc:
   (x) : (int)_h  (y) : (int)_l  
 
-Program:
-  y:= 10 ;  skip;  x:= 100   
-
-Gammaenc:
-  (x) : (int)_h  (y) : (int)_l  
-
-Translation:
-   x1  |-  x2 |-  y:= 10 ;   x3  |-  x8 |- skip ;   x7 |-  x:= 100   
-
-Constraints:
-  
-  x1 = Normal
-  x10 = Enclave
-  x9 = Enclave
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
-
-  x6 = Enclave -> (x8 = Enclave), 
-
-  x7 = Enclave -> (x9 = Enclave), (x10 = Enclave), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x10 :  Enclave
-  x2 :  x2
-  x3 :  x3
-  x4 :  x4
-  x5 :  x5
-  x6 :  x6
-  x7 :  x7
-  x9 :  Enclave
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
-
-  x6 = Enclave -> (x8 = Enclave), 
-
-  x7 = Enclave -> (x9 = Enclave), (x10 = Enclave), 
-
-
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
@@ -67,7 +14,7 @@ c java.version		1.8.0_20
 c os.name		Mac OS X
 c os.version		10.10.5
 c os.arch		x86_64
-c Free memory 		252056272
+c Free memory 		252055968
 c Max memory 		3817865216
 c Total memory 		257425408
 c Number of processors 	8
@@ -87,33 +34,35 @@ c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
 c  objective function found
-c ... done. Wall clock time 0.013s.
-c declared #vars     10
-c internal #vars     21
-c #constraints  36
+c ... done. Wall clock time 0.011s.
+c declared #vars     9
+c internal #vars     13
+c #constraints  18
 c constraints type 
-c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 5
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 11
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 11
-c org.sat4j.specs.Constr$1 => 6
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 3
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 4
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 4
+c org.sat4j.specs.Constr$1 => 4
 c ignored satisfied constraints => 1
 c org.sat4j.minisat.constraints.cnf.UnitClause => 3
-c 37 constraints processed.
-c objective function length is 21 literals
+c 19 constraints processed.
+c objective function length is 13 literals
 c SATISFIABLE
 c OPTIMIZING...
-c Got one! Elapsed wall clock time (in seconds):0.017
-o 3
-c starts		: 2
-c conflicts		: 7
-c decisions		: 12
-c propagations		: 76
-c inspects		: 173
+c Got one! Elapsed wall clock time (in seconds):0.014
+o 2
+c Got one! Elapsed wall clock time (in seconds):0.015
+o 1
+c starts		: 3
+c conflicts		: 3
+c decisions		: 8
+c propagations		: 40
+c inspects		: 47
 c shortcuts		: 0
-c learnt literals	: 2
-c learnt binary clauses	: 2
-c learnt ternary clauses	: 1
-c learnt constraints	: 4
+c learnt literals	: 1
+c learnt binary clauses	: 1
+c learnt ternary clauses	: 0
+c learnt constraints	: 1
 c ignored constraints	: 0
 c root simplifications	: 0
 c removed literals (reason simplification)	: 0
@@ -125,16 +74,19 @@ c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 19000.0
-c non guided choices	1
+c speed (assignments/second)	: 13333.333333333334
+c non guided choices	2
 c learnt constraints type 
 s OPTIMUM FOUND
-c Found 1 solution(s)
-v -x1 -x2 -x3 -x4 -x5 -x6 x7 -x8 x9 x10 
-c objective function=3
-c Total wall clock time (in seconds): 0.019
-Position: 2787
-V Position: 2823
-C Position: 2864
--x1 -x2 -x3 -x4 -x5 -x6 x7 -x8 x9 x10 
+c Found 2 solution(s)
+v -x1 -x2 -x3 -x4 -x5 -x6 x7 x8 x9 
+c objective function=1
+c Total wall clock time (in seconds): 0.017
+Position: 2851
+V Position: 2887
+C Position: 2923
+-x1 -x2 -x3 -x4 -x5 -x6 x7 x8 x9 
+
+Program:
+  y:= 10 ;  skip;  x:= 100   
 

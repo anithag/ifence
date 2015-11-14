@@ -1,2 +1,2 @@
 y1:int_low; y2:int_low; y3:int_low; z:int_high ref_high; x:int_high 
-z<-22;y1:=11; y2:= 12; y3:=14; x:=33
+z<-22;y1:=11;  x:=33;y2:= 12; y3:=14

@@ -4,70 +4,6 @@ Gammasrc:
 Program:
   if (x == 0) then  y:= lambda. (z:= (z + 1) )  else  skip  fi;  call(y) 
 
-Gammaenc:
-  (x) : (int)_h  (y) : func^x13 (h, {  })_h (z) : (int)_l  
-
-Translation:
-   x1  |- x2 |- if (x == 0)
-          then   x5 |-  y:= lambda^x9(l, _).( x10 |-  z:= (z + 1) )_h 
-          else   x14 |- skip   fi;
-   x3  |- call(y) 
-
-Constraints:
-  
-  x1 = Normal
-  x13 = x9
-  x15 = Enclave
-  x15 = x13
-  x4 = Enclave
-  x7 = Enclave
-  x7 = x9
-  x8 = Enclave
-  x9 = Enclave
-  x9 = x10
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x10 = Enclave -> (x11 = Enclave), (x12 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), (x6 = Enclave), 
-
-  x3 = Enclave -> (x15 = Enclave), 
-
-  x4 = Enclave -> (x5 = Enclave), (x6 = Enclave), 
-
-  x5 = Enclave -> (x7 = Enclave), (x8 = Enclave), 
-
-  x6 = Enclave -> (x14 = Enclave), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x10 :  Enclave
-  x11 :  Enclave
-  x12 :  Enclave
-  x13 :  Enclave
-  x15 :  Enclave
-  x2 :  x2
-  x3 :  x3
-  x4 :  Enclave
-  x5 :  Enclave
-  x6 :  Enclave
-  x8 :  Enclave
-  x9 :  Enclave
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), (x6 = Enclave), 
-
-  x3 = Enclave -> (x15 = Enclave), 
-
-
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
@@ -103,28 +39,28 @@ c reading problem ...
 c  objective function found
 c ... done. Wall clock time 0.013s.
 c declared #vars     15
-c internal #vars     32
-c #constraints  59
+c internal #vars     29
+c #constraints  51
 c constraints type 
 c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 4
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 17
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 17
-c org.sat4j.specs.Constr$1 => 8
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 14
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 14
+c org.sat4j.specs.Constr$1 => 6
 c ignored satisfied constraints => 8
 c org.sat4j.minisat.constraints.cnf.UnitClause => 13
-c 67 constraints processed.
-c objective function length is 30 literals
+c 59 constraints processed.
+c objective function length is 28 literals
 c SATISFIABLE
 c OPTIMIZING...
-c Got one! Elapsed wall clock time (in seconds):0.016
-o 5
-c starts		: 2
-c conflicts		: 2
-c decisions		: 3
-c propagations		: 70
-c inspects		: 110
+c Got one! Elapsed wall clock time (in seconds):0.017
+o 3
+c starts		: 1
+c conflicts		: 0
+c decisions		: 2
+c propagations		: 56
+c inspects		: 79
 c shortcuts		: 0
-c learnt literals	: 1
+c learnt literals	: 0
 c learnt binary clauses	: 0
 c learnt ternary clauses	: 0
 c learnt constraints	: 0
@@ -139,16 +75,16 @@ c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 35000.0
+c speed (assignments/second)	: 28000.0
 c non guided choices	0
 c learnt constraints type 
 s OPTIMUM FOUND
 c Found 1 solution(s)
 v -x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 
-c objective function=5
-c Total wall clock time (in seconds): 0.018
-Position: 2787
-V Position: 2823
-C Position: 2878
+c objective function=3
+c Total wall clock time (in seconds): 0.019
+Position: 2786
+V Position: 2822
+C Position: 2877
 -x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 
 

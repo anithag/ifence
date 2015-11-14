@@ -1,9 +1,17 @@
 enclave( l1000 <- (lambda^1(_,_).z := z + 1 ) ;
  if x == 10 then call(*l1000) else skip ;
- skip  )
+   )
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+l1000: (func^1@ (h, {  })_h ref^1)_l 
+
  
  
  	 FUNCTION 
  	 =========
  lambda^1(_,_).
- 1|- z := z + 1 	
+ z := z + 1 

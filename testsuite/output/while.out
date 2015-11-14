@@ -1,3 +1,10 @@
 enclave( while x == 10 do x := x + 1  ;
- x := x + 2   );
-skip
+ x := x + 2  ;
+   ;
+   )
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 

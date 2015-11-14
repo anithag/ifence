@@ -1,27 +1,51 @@
-enclave( guess-loc := l1  ;
- l3 <- (lambda^1(_,_).guess-loc <- 42 ;
- guess-hash := *guess-loc  ) ;
- while true do make-a-guess := l3  ;
- call(*make-a-guess) ;
- orig-hash-loc := l2  ;
- orig-hash := *orig-hash-loc  ;
- l4 <- (lambda^1(_,_).if orig-hash == guess-hash then output(_, 1) else output(_, 0)) ;
- authenticate := l4  ;
- call(*authenticate)       ;
- skip   )
+
+guess-loc := l1 ;
+
+l3 <- (lambda^0(_,_).enclave( guess-loc <- 42 ;
+ guess-hash := *guess-loc  ;
+   ));
+enclave( l4 <- (lambda^1(_,_).if orig-hash == guess-hash then output(_, 1) else output(_, 0)) ;
+   )
+authenticate := l4 ;
+
+while true do 
+make-a-guess := l3 ;
+
+call(*make-a-guess);
+
+orig-hash-loc := l2 ;
+enclave( orig-hash := *orig-hash-loc  ;
+ call(*authenticate) ;
+   );
+
+skip;
+
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+authenticate: (func^1@ (h, {  })_h ref^1)_l 
+guess-loc: ((int)_h  ref^1)_l 
+make-a-guess: (func^0@ (h, {  })_l ref^0)_l 
+orig-hash-loc: ((int)_h  ref^1)_l 
+l1: ((int)_h  ref^1)_l 
+l2: ((int)_h  ref^1)_l 
+l3: (func^0@ (h, {  })_l ref^0)_l 
+l4: (func^1@ (h, {  })_l ref^1)_l 
+
  
  
  	 FUNCTION 
  	 =========
  lambda^1(_,_).
- 1|- guess-loc <- 42 ; guess-hash := *guess-loc 
- --------------------------------------
-1|- guess-loc <- 42	1|- guess-hash := *guess-loc 	
+ if orig-hash == guess-hash then output(_, 1) else output(_, 0)
  
  
  	 FUNCTION 
  	 =========
- lambda^1(_,_).
- 1|- if orig-hash = guess-hash then output(_, 1) else output(_, 0)
- --------------------------------------
-1|- output(_, 1)	1|- output(_, 0)	
+ lambda^0(_,_).
+ enclave( guess-loc <- 42 ;
+ guess-hash := *guess-loc  ;
+   )

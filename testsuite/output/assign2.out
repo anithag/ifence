@@ -1,3 +1,11 @@
 enclave( x := l100  ;
  x <- y ;
- skip  )
+   )
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+x: ((int)_h  ref^1)_h 
+l100: ((int)_h  ref^1)_l 

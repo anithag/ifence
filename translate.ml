@@ -1,6 +1,7 @@
 open Ast
 open Printf
 open Pprint
+open Helper
 
 exception PrintError
 
@@ -11,6 +12,13 @@ module ELamSet = Set.Make(struct
 end)
 type elamset = ELamSet.t
 
+(* Reusing ELamSet. Misnomer. Fix later *)
+module ELocSet = Set.Make(struct
+  type t = (varloc * enclabeltype)
+  let compare = Pervasives.compare
+end)
+type elocset = ELamSet.t
+
 (* 1 - dashed line, 2 - \t, 3 - \n *)
 let printSpace (oc:out_channel) (space:int) = 
 match space with
@@ -19,29 +27,12 @@ match space with
  | 3 -> Printf.fprintf oc "\n"
  | _ -> raise PrintError
  
-let getexpmode = function
-  | EVar(rho, v) -> rho
-  | ELam(rho, rho', p, u, q, s) -> rho 
-  | EPlus (rho, l,r) -> rho
-  | EConstant(rho,n) ->  rho
-  | ETrue rho ->  rho
-  | EFalse rho  -> rho
-  | EEq (rho, l,r) -> rho
-  | ELoc(rho, rho', l) ->rho
-  | EDeref(rho,e) -> rho
-  | EIsunset(rho,x) -> rho
-
-let getstmtmode   = function
-  | EIf (m,e,c1,c2) -> m
-  | EAssign(m, x, e) ->m 
-  | ESeq(m,s1, s2) -> m
-  | ECall(m,e)    -> m
-  | EUpdate(m,e1, e2) ->m
-  | EWhile(m, b, s) -> m
-  | ESkip (m, m') -> m'
-  | EOutput(m,ch, e) ->m
-  | ESet(m,x)	-> m
-
+let rec collectloc elset gammaenc = VarLocMap.fold (fun key value  elset -> match key with
+						|Mem loc -> ELocSet.add (key, value) elset
+						|Reg var  -> begin match value with
+							     |EBtRef (rho, lt), _ -> ELocSet.add (key, value) elset
+							     | _ -> elset
+							     end ) gammaenc ELocSet.empty
 let rec collectlam elset = function
   | EIf (m,e,c1,c2) -> let es1 = collectlam elset c1 in
 			collectlam es1 c2
@@ -54,6 +45,12 @@ let rec collectlam elset = function
   | ESkip (m, m') -> elset
   | EOutput(m,ch, e) ->collectlamexp elset e
   | ESet(m,x)	-> elset
+  | EESeq(m, eslist) -> let rec innercollectlam ielset = function
+			|[] -> ielset
+			|xs::tail -> let es1 = collectlam ielset xs in
+				     innercollectlam es1 tail
+			in
+			innercollectlam elset eslist
 
 and collectlamexp elset = function
   | EVar(rho, v) -> elset
@@ -71,9 +68,9 @@ and collectlamexp elset = function
 (* Prints only enclave mode statements *)
 let rec pprintEncStmtnomode oc  = function
   | rhomap, EIf (m,e,c1,c2),isenc -> if isenc then
-					Printf.fprintf oc "enclave(if %a then %a else %a)" pprintEncExpnomode (rhomap, e) pprintEncStmtnomode (rhomap, c1, false) pprintEncStmtnomode (rhomap, c2, false)
+					Printf.fprintf oc "enclave(if %a then %a else %a)" pprintEncExpnomode (rhomap, e) prettytranslate (c1, rhomap) prettytranslate (c2, rhomap)
 				     else
-  					Printf.fprintf oc "if %a then %a else %a" pprintEncExpnomode (rhomap, e) pprintEncStmtnomode (rhomap, c1, false) pprintEncStmtnomode (rhomap, c2, false)
+  					Printf.fprintf oc "if %a then %a else %a" pprintEncExpnomode (rhomap, e) prettytranslate (c1, rhomap) prettytranslate (c2, rhomap)
   | rhomap, EAssign(m, x, e),isenc -> if isenc then
 					Printf.fprintf oc "enclave( %s := %a )" x pprintEncExpnomode (rhomap, e) 
 				      else
@@ -82,6 +79,10 @@ let rec pprintEncStmtnomode oc  = function
 					Printf.fprintf oc "enclave( %a ;\n %a )" pprintEncStmtnomode (rhomap, s1, false) pprintEncStmtnomode (rhomap, s2, false)
 				    else
 					Printf.fprintf oc "%a ;\n %a " pprintEncStmtnomode (rhomap, s1, false) pprintEncStmtnomode (rhomap, s2, false)
+  | rhomap, EESeq(m,eslist),isenc -> if isenc then
+					Printf.fprintf oc "enclave( %a )" pprintEncStmtlist (rhomap, eslist)
+				    else
+					pprintEncStmtlist oc (rhomap, eslist)
   | rhomap, ECall(m,e), isenc    ->  if isenc then
 					Printf.fprintf oc "enclave( call(%a) )" pprintEncExpnomode (rhomap, e) 
 				    else
@@ -91,9 +92,9 @@ let rec pprintEncStmtnomode oc  = function
 				    else
 					Printf.fprintf oc "%a <- %a" pprintEncExpnomode (rhomap, e1) pprintEncExpnomode (rhomap, e2)
   | rhomap, EWhile(m, b, s), isenc ->  if isenc then
-					Printf.fprintf oc "enclave( while %a do %a )" pprintEncExpnomode (rhomap, b) pprintEncStmtnomode (rhomap, s, false)
+					Printf.fprintf oc "enclave( while %a do %a )" pprintEncExpnomode (rhomap, b) prettytranslate (s, rhomap)
 				    else
-					Printf.fprintf oc "while %a do %a" pprintEncExpnomode (rhomap, b) pprintEncStmtnomode (rhomap, s, false)
+					Printf.fprintf oc "while %a do %a" pprintEncExpnomode (rhomap, b) prettytranslate (s, rhomap)
   | rhomap, ESkip (m, m'), isenc ->  if isenc then
 					Printf.fprintf oc "enclave( skip )"
 				    else
@@ -118,6 +119,10 @@ and pprintEncExpnomode oc  = function
   | rhomap, ELoc(rho, rho', l) ->Printf.fprintf oc "l%d" l
   | rhomap, EDeref(rho,e) -> Printf.fprintf oc "*%a" pprintEncExpnomode (rhomap, e)
   | rhomap, EIsunset(rho,x) -> Printf.fprintf oc "isunset(%s)" x
+
+and pprintEncStmtlist oc = function
+|rhomap, [] -> Printf.fprintf oc " "
+|rhomap, xs::tail ->  Printf.fprintf oc "%a ;\n %a" pprintEncStmtnomode (rhomap, xs, false)  pprintEncStmtlist (rhomap, tail) 
 
 and prettytranslate oc (s, rhomap) = 
 match s with
@@ -159,7 +164,28 @@ match s with
 				   else
 					(* Recursively translate *)
 					(prettytranslate oc (s1, rhomap); Printf.fprintf oc ";\n"; prettytranslate oc (s2, rhomap))
-
+ |EESeq(rho, eslist) -> let rhonorm = (ModeSAT.find rho rhomap) in
+			let rec findlargest inplist = function
+			    | [] -> let len = List.length inplist in
+				     if len > 0 then
+						pprintEncStmtnomode oc (rhomap, EESeq(rho, inplist), (rhonorm = 0))
+				     else ()
+			    | xs::tail -> let rhoi =  getstmtmode xs in
+					  let rhoival = ModeSAT.find rhoi rhomap in
+					  if rhoival = 1 then 
+						findlargest (inplist @ [xs]) tail
+					  else 
+						(* At this point we found a normal mode instruction *)
+					     	let len = List.length inplist in
+						let _   = if len > 0 then
+									pprintEncStmtnomode oc (rhomap, EESeq(rho, inplist), (rhonorm = 0))
+							  else ()  in
+						 Printf.fprintf oc "\n"; pprintEncStmtnomode oc (rhomap, xs, false); Printf.fprintf oc ";\n";
+						findlargest [] tail 
+			in
+			let _ = findlargest [] eslist in
+			()
+						
  |ECall(rho, e) -> let rhoprimeenc = (ModeSAT.find (getexpmode e) rhomap) in
 			let rhonorm = (ModeSAT.find rho rhomap) in  
 			let insertenc = if  (rhonorm = 0)&&(rhoprimeenc = 1) then true else false in
@@ -211,6 +237,23 @@ match s with
 			printEncStmtwithmode oc (rhomap,s, insertenc) ;
 			printSpace oc 1;  translate oc (s1, rhomap, space) ;
 			translate oc (s2, rhomap, space)
+ |EESeq(rho, eslist) -> let rhonorm = (ModeSAT.find rho rhomap) in
+			let rec findlargest inplist = function
+			    | [] -> Printf.fprintf oc " "
+			    | xs::tail -> let rhoi =  getstmtmode xs in
+					  let rhoival = ModeSAT.find rhoi rhomap in
+					  if rhoival = 1 then 
+						findlargest (inplist @ [xs]) tail
+					  else 
+					     	let len = List.length inplist in
+						let _   = if len > 0 then
+									pprintEncStmtnomode oc (rhomap, EESeq(rho, inplist), (rhonorm = 0))
+							  else ()  in
+						 Printf.fprintf oc ";\n"; pprintEncStmtnomode oc (rhomap, xs, false); 
+						findlargest [] tail in
+			let _ = findlargest [] eslist in
+			()
+						
  |ECall(rho, e) -> let rhoprimeenc = (ModeSAT.find (getexpmode e) rhomap) in
 			let rhonorm = (ModeSAT.find rho rhomap) in  
 			let insertenc = if  (rhonorm = 0)&&(rhoprimeenc = 1) then true else false in

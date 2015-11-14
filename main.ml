@@ -45,6 +45,7 @@ let () =
   let c0, c1, m,ms, gammaenc, fcost, translation = (Constraints.gen_constraints gammasrc rho stmt VarLocMap.empty) in
   let c0' = Constr.add (rho, Normal) c0 in
 
+(*
   let _ =
     Format.printf "@[";
     Format.printf "Gammaenc:@\n  @[";
@@ -85,7 +86,6 @@ let () =
           true)
         c1 true in
     Format.printf "@]@\n@\n" in
-(*
   let _ =
     Format.printf "Mode Mappings to Program Statements and Expressions :@\n  @[";
     let _ =
@@ -98,7 +98,6 @@ let () =
           true)
         m true in
     Format.printf "@]@\n@\n" in
- *)
 
   let s = Constraints.unify c0' in
   let s', tmp = Constraints.cond_unify c0' c1 (Constr2.empty) c0' s in
@@ -131,6 +130,7 @@ let () =
         tmp true in
     Format.printf "@]@\n@\n" in
 
+ *)
   (* let v = Eval.eval_stmt VarLocMap.empty stmt in *)
   let totalc = PPlus (fst fcost, snd fcost) in 
   let condconstr_num = Helper.countCondConstraints c1 in
@@ -148,10 +148,20 @@ let () =
   let oc = open_out "output.txt" in
   let _ = Translate.prettytranslate oc (translation, model) in
   let elset = Translate.collectlam ELamSet.empty translation in 
+  let locset = Translate.collectloc ELocSet.empty gammaenc in
+  let _ = Printf.fprintf oc "\n \n \n \t LOCATIONS \n \t============= \n" in
+  let _ = ELocSet.fold (fun e  b -> (if b then
+			match e with
+			|(locexp, typ) -> begin match locexp with
+					 | Reg v -> Printf.fprintf oc "%s: %a\n" v Pprint.printEncTypChannel (typ, model)
+					 | Mem loc -> Printf.fprintf oc "l%d: %a\n" loc Pprint.printEncTypChannel (typ, model)
+					 end
+			|_ -> raise MainError
+			);true) locset true in
   let _ = ELamSet.fold (fun e b -> (if b then
 			match e with
 			|ELam (rho, rho', p, u, q, s) -> 
-					Printf.fprintf oc "\n \n \n \t FUNCTION \n \t =========\n lambda^%d(_,_).\n %a" (ModeSAT.find rho' model) Translate.translate (s, model, 1)
+					Printf.fprintf oc "\n \n \n \t FUNCTION \n \t =========\n lambda^%d(_,_).\n %a" (ModeSAT.find rho' model) Translate.prettytranslate (s, model)
 			|_ -> raise MainError
 			);true) elset true in
    ()

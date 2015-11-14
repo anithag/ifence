@@ -95,3 +95,33 @@ let next_tvar () : mode =
   let x = !tvar_cell in
   let s = "x" ^ string_of_int x in
   incr tvar_cell; ModeVar s
+
+(* ------- Flatten Sequence ------------ *)
+let rec flattenseq s = match s with
+|Seq(c1, c2) -> flattenseq c1 @ flattenseq c2
+| _   -> [s]
+
+let getexpmode = function
+  | EVar(rho, v) -> rho
+  | ELam(rho, rho', p, u, q, s) -> rho 
+  | EPlus (rho, l,r) -> rho
+  | EConstant(rho,n) ->  rho
+  | ETrue rho ->  rho
+  | EFalse rho  -> rho
+  | EEq (rho, l,r) -> rho
+  | ELoc(rho, rho', l) ->rho
+  | EDeref(rho,e) -> rho
+  | EIsunset(rho,x) -> rho
+
+let getstmtmode   = function
+  | EIf (m,e,c1,c2) -> m
+  | EAssign(m, x, e) ->m 
+  | ESeq(m,s1, s2) -> m
+  | ECall(m,e)    -> m
+  | EUpdate(m,e1, e2) ->m
+  | EWhile(m, b, s) -> m
+  | ESkip (m, m') -> m'
+  | EOutput(m,ch, e) ->m
+  | ESet(m,x)	-> m
+  | EESeq (m, _) -> m
+

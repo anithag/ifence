@@ -2,79 +2,6 @@ Gammasrc:
   (x) : (int)_h  (y1) : (int)_l  (y2) : (int)_h  (y3) : (int)_l  (z) : 
                                                                  ((int)_h  ref)_h  
 
-Program:
-  z <- 22;  y1:= 11 ;  y2:= 12 ;  x:= 33    
-
-Gammaenc:
-  (x) : (int)_h  (y1) : (int)_l  (y2) : (int)_h  (z) : ((int)_h  ref^x5)_h  
-
-Translation:
-   x1  |-  x2 |- z <- 22;
-    x3  |-  x6 |-  y1:= 11 ;   x7  |-  x10 |-  y2:= 12 ;   x11 |-  x:= 33    
-
-Constraints:
-  
-  x1 = Normal
-  x12 = Enclave
-  x13 = Enclave
-  x14 = Enclave
-  x15 = Enclave
-  x4 = Enclave
-  x5 = Enclave
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x10 = Enclave -> (x12 = Enclave), (x13 = Enclave), 
-
-  x11 = Enclave -> (x14 = Enclave), (x15 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), 
-
-  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
-
-  x5 = Enclave -> (x4 = Enclave), 
-
-  x6 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x7 = Enclave -> (x10 = Enclave), (x11 = Enclave), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x10 :  x10
-  x11 :  x11
-  x12 :  Enclave
-  x13 :  Enclave
-  x14 :  Enclave
-  x15 :  Enclave
-  x2 :  x2
-  x3 :  x3
-  x4 :  Enclave
-  x6 :  x6
-  x7 :  x7
-  x8 :  x8
-  x9 :  x9
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x10 = Enclave -> (x12 = Enclave), (x13 = Enclave), 
-
-  x11 = Enclave -> (x14 = Enclave), (x15 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), 
-
-  x3 = Enclave -> (x6 = Enclave), (x7 = Enclave), 
-
-  x6 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x7 = Enclave -> (x10 = Enclave), (x11 = Enclave), 
-
-
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
@@ -108,56 +35,59 @@ c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
 c  objective function found
-c ... done. Wall clock time 0.013s.
-c declared #vars     15
-c internal #vars     31
-c #constraints  58
+c ... done. Wall clock time 0.012s.
+c declared #vars     13
+c internal #vars     18
+c #constraints  30
 c constraints type 
-c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 6
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 16
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 16
-c org.sat4j.specs.Constr$1 => 13
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 2
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 5
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 5
+c org.sat4j.specs.Constr$1 => 11
 c ignored satisfied constraints => 2
 c org.sat4j.minisat.constraints.cnf.UnitClause => 7
-c 60 constraints processed.
-c objective function length is 30 literals
+c 32 constraints processed.
+c objective function length is 16 literals
 c SATISFIABLE
 c OPTIMIZING...
 c Got one! Elapsed wall clock time (in seconds):0.016
-o 9
-c Got one! Elapsed wall clock time (in seconds):0.018
-o 7
-c starts		: 3
-c conflicts		: 16
-c decisions		: 26
-c propagations		: 211
-c inspects		: 493
+o 4
+c Got one! Elapsed wall clock time (in seconds):0.016
+o 3
+c starts		: 2
+c conflicts		: 1
+c decisions		: 7
+c propagations		: 57
+c inspects		: 51
 c shortcuts		: 0
-c learnt literals	: 4
-c learnt binary clauses	: 4
-c learnt ternary clauses	: 1
-c learnt constraints	: 11
+c learnt literals	: 1
+c learnt binary clauses	: 0
+c learnt ternary clauses	: 0
+c learnt constraints	: 0
 c ignored constraints	: 0
 c root simplifications	: 0
 c removed literals (reason simplification)	: 0
 c reason swapping (by a shorter reason)	: 0
 c Calls to reduceDB	: 0
-c Number of update (reduction) of LBD	: 1
+c Number of update (reduction) of LBD	: 0
 c Imported unit clauses	: 0
 c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 52750.0
-c non guided choices	2
+c speed (assignments/second)	: 28500.0
+c non guided choices	1
 c learnt constraints type 
 s OPTIMUM FOUND
 c Found 2 solution(s)
-v -x1 x2 -x3 x4 x5 -x6 -x7 -x8 -x9 x10 x11 x12 x13 x14 x15 
-c objective function=7
-c Total wall clock time (in seconds): 0.021
-Position: 2849
-V Position: 2885
-C Position: 2945
--x1 x2 -x3 x4 x5 -x6 -x7 -x8 -x9 x10 x11 x12 x13 x14 x15 
+v -x1 x2 x3 x4 -x5 -x6 -x7 x8 x9 x10 x11 x12 x13 
+c objective function=3
+c Total wall clock time (in seconds): 0.018
+Position: 2842
+V Position: 2878
+C Position: 2928
+-x1 x2 x3 x4 -x5 -x6 -x7 x8 x9 x10 x11 x12 x13 
+
+Program:
+  z <- 22;  y1:= 11 ;  y2:= 12 ;  x:= 33    
 

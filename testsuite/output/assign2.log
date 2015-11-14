@@ -1,65 +1,6 @@
 Gammasrc:
   (x) : ((int)_h  ref)_h  (y) : (int)_l  (l100) : ((int)_h  ref)_l  
 
-Program:
-  x:= l100 ;  x <- y;  skip  
-
-Gammaenc:
-  (x) : ((int)_h  ref^x7)_h  (y) : (int)_l  (l100) : ((int)_h  ref^x6)_l  
-
-Translation:
-   x1  |-  x2 |-  x:= l100^x6  ;   x3  |-  x8 |- x <- y;   x11 |- skip   
-
-Constraints:
-  
-  x1 = Normal
-  x10 = Enclave
-  x4 = Enclave
-  x5 = Enclave
-  x6 = Enclave
-  x7 = Enclave
-  x7 = x6
-
-Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x7 = Enclave -> (x10 = Enclave), 
-
-  x8 = Enclave -> (x10 = Enclave), 
-
-  x9 = Enclave -> (x11 = Enclave), 
-
-
-Unification Result:
-  
-  x1 :  Normal
-  x10 :  Enclave
-  x2 :  x2
-  x3 :  x3
-  x4 :  Enclave
-  x5 :  Enclave
-  x6 :  Enclave
-  x8 :  x8
-  x9 :  x9
-
-Remaining Conditional Constraints:
-  
-  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
-
-  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
-
-  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
-
-  x8 = Enclave -> (x10 = Enclave), 
-
-  x9 = Enclave -> (x11 = Enclave), 
-
-
 c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
 c This is free software under the dual EPL/GNU LGPL licenses.
 c See www.sat4j.org for details.
@@ -93,33 +34,35 @@ c --- End Solver configuration ---
 c solving min.opb
 c reading problem ... 
 c  objective function found
-c ... done. Wall clock time 0.012s.
-c declared #vars     11
-c internal #vars     22
-c #constraints  41
+c ... done. Wall clock time 0.011s.
+c declared #vars     10
+c internal #vars     14
+c #constraints  23
 c constraints type 
-c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 3
-c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 11
-c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 11
-c org.sat4j.specs.Constr$1 => 10
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 1
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 4
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 4
+c org.sat4j.specs.Constr$1 => 8
 c ignored satisfied constraints => 4
 c org.sat4j.minisat.constraints.cnf.UnitClause => 6
-c 45 constraints processed.
-c objective function length is 21 literals
+c 27 constraints processed.
+c objective function length is 13 literals
 c SATISFIABLE
 c OPTIMIZING...
-c Got one! Elapsed wall clock time (in seconds):0.015
-o 5
+c Got one! Elapsed wall clock time (in seconds):0.014
+o 3
+c Got one! Elapsed wall clock time (in seconds):0.014
+o 2
 c starts		: 2
-c conflicts		: 6
-c decisions		: 7
-c propagations		: 76
-c inspects		: 158
+c conflicts		: 1
+c decisions		: 6
+c propagations		: 48
+c inspects		: 44
 c shortcuts		: 0
-c learnt literals	: 3
-c learnt binary clauses	: 1
+c learnt literals	: 1
+c learnt binary clauses	: 0
 c learnt ternary clauses	: 0
-c learnt constraints	: 2
+c learnt constraints	: 0
 c ignored constraints	: 0
 c root simplifications	: 0
 c removed literals (reason simplification)	: 0
@@ -131,16 +74,19 @@ c number of reductions to clauses (during analyze)	: 0
 c number of learned constraints concerned by reduction	: 0
 c number of learning phase by resolution	: 0
 c number of learning phase by cutting planes	: 0
-c speed (assignments/second)	: 25333.333333333332
+c speed (assignments/second)	: 24000.0
 c non guided choices	0
 c learnt constraints type 
 s OPTIMUM FOUND
-c Found 1 solution(s)
-v -x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 
-c objective function=5
-c Total wall clock time (in seconds): 0.018
-Position: 2798
-V Position: 2834
-C Position: 2873
--x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 
+c Found 2 solution(s)
+v -x1 x2 x3 x4 x5 x6 x7 x8 -x9 -x10 
+c objective function=2
+c Total wall clock time (in seconds): 0.016
+Position: 2841
+V Position: 2877
+C Position: 2914
+-x1 x2 x3 x4 x5 x6 x7 x8 -x9 -x10 
+
+Program:
+  x:= l100 ;  x <- y;  skip  
 
