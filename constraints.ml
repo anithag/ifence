@@ -3,142 +3,15 @@ open Helper
 open Cost
 
 exception TypeError 
+exception ModeError
+exception TranslationError of string
 exception TypeNotFoundError 
 exception TypeNotFoundError1 
 exception UnificationError
-exception UnimplementedError
+exception UnimplementedError of string
 exception EmptySeqError
+exception JoinError
 
-(* [unify c0] solves [c0] (if possible), yielding a substitution. Raise UnificationError if constraints cannot be unified. *)
-let rec unify (c0:constr) : subst = 
- match Constr.is_empty c0 with
-        | true -> ModeVarMap.empty
-        | false ->
-          let a, b = Constr.choose c0 in
-          let c1 = Constr.remove (a,b) c0 in
-          if a = b then unify(c1) else
-          begin match (a,b) with
-                |ModeVar x, ModeVar y -> 
-                        let unified_subst = unify(subst_constr c1 x (ModeVar y)) in
-                        let mode_t = apply_subst unified_subst (ModeVar y) in
-                        ModeVarMap.add x mode_t unified_subst
-		|ModeVar x, Enclave
-		|Enclave, ModeVar x  ->
-			let unified_subst = unify(subst_constr c1 x Enclave) in
-			ModeVarMap.add x Enclave unified_subst	(* Add x = Enclave to map *)
-		|ModeVar x, Normal
-		|Normal, ModeVar x ->
-			let unified_subst = unify(subst_constr c1 x Normal) in
-			ModeVarMap.add x Normal unified_subst	(* Add x = Normal to map *)
-                | _ , _ -> raise UnificationError
-	 end
-
-(* Conditional unification
-  + c0: Set of constraints of form a = Enclave/Normal
-  + c1: Set of conditional constraints of form if a = Enclave/Normal -> c = Enclave/Normal....
-  + tmp : Temporary conditional constraints which needs further processing 
-  + s  : Map from mode variables to Enclave/Normal
-  + The below unification algorithm terminates
-
- Algorithm:
- 
- 1. If c1 is not empty
-	1. Choose (a, b) from c1. Note that a is pre-cond and b is the list of post-cond
-	2. If 'a' is satisfied in c0, then 
-			a. add 'a' and all 'b' to c0 (updated as c0'')
-        		b. Remove (a, b) from c1  (updated as c2)
-			c. Update map s with the list 'b' (updated as unified_subst)
-			d. call cond_unify c0'' c2 tmp unified_subst
-	3. If 'a' is not satisfied in c0, then
-			a. add (a,b) to tmp  (updated as tmp')
-			b. remove (a,b) from c1 (updated as c2)
-  			c. call cond_unify c0 c2 tmp' s
- 2. If c1 is empty, then
-	1. Check if tmp is also empty. If yes, return s
-	2. If tmp is not empty, check if fixed point is reached i.e. c0 is unchanged. 
-			a. If yes, return s. This step guarantees termination.
-			b. If not, Remove (a, b) from tmp
-			c. Add (a,b) to c1
-			d. cond_unify c0 c1 tmp s
- *)
-let rec cond_unify (c0:constr) (c1:constr2) (tmp:constr2) (c0_prev:constr) (s:subst): subst*constr2 =
- match Constr2.is_empty c1 with
-        | true -> begin match Constr2.is_empty tmp with
-		  | true -> (s, tmp)
-		  | false -> if Constr.equal c0 c0_prev then (s, tmp)  (* Fixed point reached *)
-			     else 
-			     let a,b = Constr2.choose tmp in
-			     let tmp' = Constr2.remove (a,b) tmp in
-			     let c1' = Constr2.add (a,b) c1 in
-				cond_unify c0 c1' tmp' c0 s  (* Note that c0_prev is updated here to use c0 *)
-		 end
-        | false ->
-          let a, b = Constr2.choose c1 in
-          begin match a with
-                |ModeVar x, Enclave
-		|Enclave, ModeVar x ->
-			(* Check if the pre-condition is satisfied *)
-                        let mode_t = apply_subst s (ModeVar x) in
-			if mode_t = Enclave then 
-				(* pre-condition satisfied *)
-				let c0' = Constr.add a c0 in
-
-				(* Add corresponding pre and post conditions to c0 *)
-				let c0'' = List.fold_right (fun elm (c:constr)  -> Constr.add elm c) b c0' in  
-          			let c2 = Constr2.remove (a,b) c1 in
-				
-				(* Update Map *)
-				let rec update_map (xl:mode list ) (rho:mode) (s0:subst) = 
-					begin match xl with
-					[] -> s0
-					|(ModeVar y)::xs -> let s0' =
-                        				ModeVarMap.add y rho  s0
-							in update_map xs Enclave s0'
-					end
-					(* already know that x = Enclave which is a constant, no further propagation is required *)
-					in
-				let unified_subst = update_map (fst (List.split b)) Enclave s in
-				(* substitution not required here, as constraints are of form x = Enclave/Normal *)
-                        	cond_unify c0'' c2 tmp c0_prev unified_subst  
-			else  
-				(* Remove from c1 and add to tmp for future processing *)
-				let c2 = Constr2.remove (a, b) c1  in
-				let tmp' = Constr2.add (a,b) tmp   in
-				 cond_unify c0 c2 tmp' c0_prev s
-				
-                |ModeVar x, Normal
-		|Normal, ModeVar x ->
-			(* Check if the pre-condition is satisfied *)
-                        let mode_t = apply_subst s (ModeVar x) in
-			if mode_t = Normal then 
-				(* pre-condition satisfied *)
-				let c0' = Constr.add a c0 in
-
-				(* Add corresponding pre and post conditions to c0 *)
-				let c0'' = List.fold_right (fun elm (c:constr)  -> Constr.add elm c) b c0' in  
-          			let c2 = Constr2.remove (a,b) c1 in
-				
-				(* Update Map *)
-				let rec update_map (xl:mode list ) (rho:mode) (s0:subst) = 
-					begin match xl with
-					[] -> s0
-					|(ModeVar y)::xs -> let s0' =
-                        				ModeVarMap.add y rho  s0
-							in update_map xs rho s0'
-					end
-					(* already know that x = Normal which is a constant, no further propagation is required *)
-					in
-				let unified_subst = update_map (fst (List.split b)) Normal s in
-				(* substitution not required here, as constraints are of form x = Enclave/Normal *)
-                        	cond_unify c0'' c2 tmp c0_prev unified_subst  
-			else  
-				(* Remove from c1 and add to tmp for future processing *)
-				let c2 = Constr2.remove (a, b) c1  in
-				let tmp' = Constr2.add (a,b) tmp   in
-				 cond_unify c0 c2 tmp' c0_prev s
-                | ModeVar x, ModeVar y -> raise UnificationError (* How to handle this? *)
-	end
- 
 (* Return join of policies in policy lattice *)
 let join = function
   |_, High
@@ -148,18 +21,87 @@ let join = function
   |Low, Low -> Low
   |Erase(l1, c1, h1), Erase(l2, c2, h2) -> High
 
+let rec join_src_tau = function
+ |((BtInt, p1), (BtInt, p2)) -> (BtInt, join (p1, p2))
+ |((BtBool, p1), (BtBool, p2)) -> (BtBool, join (p1, p2))
+ |((BtCond, p1), (BtCond, p2)) -> (BtCond, join (p1, p2))
+ |((BtRef (lt1), p1), (BtRef (lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
+							 (BtRef (join_src_tau (lt1,lt2)), join (p1, p2))
+ |((BtFunc(gpre1, p1, u1, gpost1), q1), (BtFunc (gpre2, p2, u2, gpost2), q2)) ->
+							(* FIXME: Not implementing function subtyping for now *) 
+							(* gpre1 = gpre2 and gpost1 = gpost2*)
+							(BtFunc (join_src_context (gpre1, gpre2), p1, u1, 
+							join_src_context (gpost1, gpost2)), join (q1, q2))
+ | _,_ -> raise JoinError
+
+(* Only modes should differ, remaining should be same *)
+and join_src_context (g1, g2) = 
+  let rec join_tau_special = function
+ 	|((BtInt, p1), (BtInt, p2)) -> if not (p1=p2) then raise JoinError else (BtInt, p1)
+ 	|((BtBool, p1), (BtBool, p2)) -> if not (p1=p2) then raise JoinError else (BtBool, p1)
+ 	|((BtCond, p1), (BtCond, p2)) -> if not (p1=p2) then raise JoinError else (BtCond, p1)
+ 	|((BtRef lt1, p1), (BtRef lt2, p2)) -> 
+						if not (p1=p2) then raise JoinError else  (BtRef (join_tau_special (lt1,lt2)), p1)
+ 	|((BtFunc(gpre1, p1, u1, gpost1), q1), (BtFunc (gpre2, p2, u2, gpost2), q2)) ->
+						(* FIXME: Note the special condition q1 = q2 *)
+						let istrue = (p1=p2) && (VarSet.equal u1 u2) && (q1=q2) in
+						if not (istrue) then raise JoinError else  (BtFunc (join_src_context (gpre1,gpre2), p1, u1, 
+												join_src_context (gpost1, gpost2) ), q1)
+  in
+  let g' = VarLocMap.merge (fun key a b -> begin match (a,b) with
+ 				| (Some a, Some b) -> Some (join_tau_special (a,b)) 
+				| (None, Some b) -> raise JoinError 
+				| (Some a, None) -> raise JoinError 
+				end) g1 g2
+  in g'
+ 
+let rec join_enc_tau = function
+ |((EBtInt, p1), (EBtInt, p2)) -> (EBtInt, join (p1, p2))
+ |((EBtBool, p1), (EBtBool, p2)) -> (EBtBool, join (p1, p2))
+ |((EBtCond, p1), (EBtCond, p2)) -> (EBtCond, join (p1, p2))
+ |((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
+							 (EBtRef (rho1, join_enc_tau (lt1,lt2)), join (p1, p2))
+ |((EBtFunc(rho1, gencpre1, p1, u1, gencpost1), q1), (EBtFunc (rho2, gencpre2, p2, u2, gencpost2), q2)) ->
+							(* FIXME: Not implementing function subtyping for now *) 
+							(* gencpre1 = gencpre2 and gencpost1 = gencpost2*)
+							(EBtFunc (rho1, join_enc_context (gencpre1, gencpre2), p1, u1, 
+							join_enc_context (gencpost1, gencpost2)), join (q1, q2))
+ | _,_ -> raise JoinError
+
+(* Only modes should differ, remaining should be same *)
+and join_enc_context (g1, g2) = 
+  let rec join_tau_special = function
+ 	|((EBtInt, p1), (EBtInt, p2)) -> if not (p1=p2) then raise JoinError else (EBtInt, p1)
+ 	|((EBtBool, p1), (EBtBool, p2)) -> if not (p1=p2) then raise JoinError else (EBtBool, p1)
+ 	|((EBtCond, p1), (EBtCond, p2)) -> if not (p1=p2) then raise JoinError else (EBtCond, p1)
+ 	|((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
+						if not (p1=p2) then raise JoinError else  (EBtRef (rho1, join_tau_special (lt1,lt2)), p1)
+ 	|((EBtFunc(rho1, gencpre1, p1, u1, gencpost1), q1), (EBtFunc (rho2, gencpre2, p2, u2, gencpost2), q2)) ->
+						(* FIXME: Note the special condition q1 = q2 *)
+						let istrue = (p1=p2) && (VarSet.equal u1 u2) && (q1=q2) in
+						if not (istrue) then raise JoinError else  (EBtFunc (rho1, join_enc_context (gencpre1,gencpre2), p1, u1, 
+												join_enc_context (gencpost1, gencpost2) ), q1)
+  in
+  let g' = VarLocMap.merge (fun key a b -> begin match (a,b) with
+ 				| (Some a, Some b) -> Some (join_tau_special (a,b)) 
+				| (None, Some b) -> raise JoinError 
+				| (Some a, None) -> raise JoinError 
+				end) g1 g2
+  in g'
+ 
+
 let rec get_exp_type (g:context) (e:exp) : labeltype =
   match e with
    | Var x -> (try VarLocMap.find (Reg x) g with Not_found -> raise TypeNotFoundError)
    | Loc l -> (try VarLocMap.find (Mem l) g with Not_found -> raise TypeNotFoundError)
-   | Lam(p,u,q, s) -> (BtFunc(p,u), q)
+   | Lam(gpre, p,u, gpost,q, s) -> (BtFunc(gpre, p,u, gpost), q)
    | Constant n -> (BtInt, Low)
    | True    -> (BtBool, Low)
    | False -> (BtBool, Low)
    | Eq(e1, e2) -> (BtBool, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
    | Plus(e1, e2) -> (BtInt, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
    | Isunset x -> (BtBool, Low)
-   | Deref e   -> begin match (get_exp_type g e) with
+   | Deref e1   -> begin match (get_exp_type g e1) with
 		  | ((BtRef lt), p) -> (fst lt, join ((snd lt), p))
 		  | _  -> raise TypeError
 		 end
@@ -173,151 +115,300 @@ let rec translatetype (s:labeltype) : enclabeltype =
 	| (BtCond, p) -> (EBtCond, p)
 	| (BtRef b, p)-> let rho = next_tvar () in
 			(EBtRef(rho, (translatetype b)), p)
-        | (BtFunc(p, u), q) -> let rho = next_tvar () in
-			 (EBtFunc(rho, p, u), q)
+        | (BtFunc(gpre, p, u, gpost), q) -> let rho = next_tvar () in
+			(* Convert gpre and gpost*)
+			let gencpre = (VarLocMap.map (fun a -> translatetype a) gpre) in
+			let gencpost = (VarLocMap.map (fun a -> translatetype a) gpost) in
+			 (EBtFunc(rho, gencpre, p, u,gencpost), q)
 	    
-let rec get_enc_exp_type (e:encexp) (genc:enccontext) : enclabeltype =
+let rec get_enc_exp_type (genc:enccontext) (e:encexp) : enclabeltype =
   match e with
    | EVar(rho,x) -> (try VarLocMap.find (Reg x) genc with Not_found -> raise TypeNotFoundError)
    | ELoc(rho, rho', l) -> (try VarLocMap.find (Mem l) genc with Not_found -> raise TypeNotFoundError)
-   | ELam(rho, rho',p,u,q,s) -> (EBtFunc(rho',p,u), q) 
+   | ELam(rho, rho', gpre, p,u, gpost, q,s) -> (EBtFunc(rho',gpre,p,u, gpost), q) 
    | EConstant(_,n) -> (EBtInt, Low)
    | ETrue _    -> (EBtBool, Low)
    | EFalse _ -> (EBtBool, Low)
-   | EEq(rho,e1, e2) -> (EBtBool, join (snd (get_enc_exp_type e1 genc), snd (get_enc_exp_type e2 genc)))
-   | EPlus(rho,e1, e2) -> (EBtInt, join (snd (get_enc_exp_type e1 genc ), snd (get_enc_exp_type e2 genc)))
+   | EEq(rho,e1, e2) -> (EBtBool, join (snd (get_enc_exp_type genc e1), snd (get_enc_exp_type genc e2)))
+   | EPlus(rho,e1, e2) -> (EBtInt, join (snd (get_enc_exp_type genc e1 ), snd (get_enc_exp_type genc e2)))
    | EIsunset(rho,x) -> (EBtBool, Low)
-   | EDeref(rho, e)   -> begin match (get_enc_exp_type e genc) with
+   | EDeref(rho, e)   -> begin match (get_enc_exp_type genc e) with
 		  | (EBtRef(rho, lt), p) -> (fst lt, join ((snd lt), p))
 		  | _  -> raise TypeError
 		 end
  
-let rec get_exp_label lt = (snd lt)
+let rec get_enc_exp_label lt = (snd lt)
 		
-
+let get_enclave_id = function
+ |Enclave id -> id
+ |ModeVar (rho, id) -> id
+ | Normal -> raise ModeError
 
 let rec gen_constraints_type (s1: enclabeltype) (s2:enclabeltype) = 
    match (s1, s2) with
-   |(EBtRef(m1,s1'), p), (EBtRef( m2, s2'), q) -> let t1 = gen_constraints_type s1' s2' in  [(m1, m2)]@t1 (*FIX ME: Return type *)
-   |(EBtFunc(m1, p1, u1), q1), (EBtFunc(m2, p2, u2), q2) -> [(m1, m2)]
+   |(EBtRef(m1,s1'), p), (EBtRef( m2, s2'), q) -> let t1 = gen_constraints_type s1' s2' in  [(m1, m2)]@t1 
+							(* FIXME: equate gencpre1 and gencpre2; likewise equate gencpost1 and gencpost2 *)
+   |(EBtFunc(m1, gencpre1, p1, u1, gencpost1), q1), (EBtFunc(m2, gencpre2, p2, u2, gencpost2), q2) -> 
+						let rec gen_constraints_type_for_context genc1 genc2 c =
+							let c' = if (not (VarLocMap.is_empty genc1)) && (not (VarLocMap.is_empty genc2)) then
+									let (key, value1) = VarLocMap.choose genc1 in
+									let value2 = (try VarLocMap.find key genc2 with Not_found -> 
+										raise (TranslationError " Error in generating type constraints for functions ")) in
+									let c' = gen_constraints_type value1 value2 in
+									let genc1', genc2' = (VarLocMap.remove key genc1, VarLocMap.remove key genc2) in
+									gen_constraints_type_for_context genc1' genc2' c@c'
+								else
+									c
+							in c'
+						in  
+						let c1 = gen_constraints_type_for_context gencpre1 gencpre2 [(m1, m2)] in
+						let c2 = gen_constraints_type_for_context gencpost1 gencpost2 c1 in
+						c2
    | _ -> []
      
 
+(* Code borrowed from gen_constraints_type. This is called whenever a join is performed i.e. in If *)
+let rec gen_constraints_join g1 g2 =
+			let rec gen_constraints_for_context_join genc1 genc2 c =
+					let c' = if (not (VarLocMap.is_empty genc1)) && (not (VarLocMap.is_empty genc2)) then
+							let (key, value1) = VarLocMap.choose genc1 in
+								let value2 = (try VarLocMap.find key genc2 with Not_found -> 
+											raise (TranslationError "Error in generating constraints for join operation")) in
+								let c' = gen_constraints_type value1 value2 in
+								let genc1', genc2' = (VarLocMap.remove key genc1, VarLocMap.remove key genc2) in
+								gen_constraints_for_context_join genc1' genc2' c@c'
+							else
+								c
+					in c'
+			in  
+			let c1 = gen_constraints_for_context_join g1 g2 []  in
+			c1
+
+(* Given a src statement, compute the resulting typing context after the execution of statement *)
+let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
+    |Assign(x,e) -> 
+		      let srctype = get_exp_type  g e in
+		      let srcvarlabtype = join (pc, (get_exp_label srctype)) in
+		      let g1 = VarLocMap.add (Reg x) (fst srctype, srcvarlabtype) g in
+		      g1
+    |Update(e1, e2) -> g
+    |Seq(s1, s2)  ->  let g1 = src_flow_sensitive_type_infer pc g s1 in
+		      let g2 = src_flow_sensitive_type_infer pc g1 s2 in
+		      g2 
+    |Set x	-> g
+    |Skip -> g
+    |If(e, s1, s2) ->   
+		      let pc' = join (get_exp_label (get_exp_type g e), pc) in
+    		      let g1 = src_flow_sensitive_type_infer pc' g s1 in
+		      let g2 = src_flow_sensitive_type_infer pc' g s2 in
+		      let g' = VarLocMap.merge (fun key bp1 bp2 -> 
+			begin match (bp1, bp2)  with
+			|(Some (b1, p1), Some (b2, p2)) -> 
+				if (check_src_base_type b1 b2 ) then Some (join_src_tau ((b1, p1), (b2, p2)))
+				else raise (TranslationError "Join of source contexts not possible. Different base types.")
+			| _ -> raise (TranslationError "Join of source contexts not possible. Domain of contexts is not same.") 
+			end ) g1 g2
+			in g'
+    |While(e, s) -> (* Compute Fixpoint *)
+		    let rec compute_fixpoint s gi'  = 
+		    	 let pc' = join (get_exp_label (get_exp_type gi' e), pc) in
+			 let gi'' = src_flow_sensitive_type_infer pc' gi' s in
+		         let gn = VarLocMap.merge (fun key bp1 bp2 -> 
+						begin match (bp1, bp2)  with
+						|(Some (b1, p1), Some (b2, p2)) -> 
+								if (check_src_base_type b1 b2 ) then Some (join_src_tau ((b1, p1), (b2, p2)))
+								else raise (TranslationError "Join of source contexts not possible. Different base types.")
+						| _ -> raise (TranslationError "Join of source contexts not possible. Domain of contexts is not same.") 
+						end ) g gi''
+			in 
+			 if (VarLocMap.equal (fun a b -> if a = b then true else false) gi' gi'') then
+			 	gn
+			 else 
+				compute_fixpoint s  gn
+		     in compute_fixpoint s g
+
+    |Call e ->  let srctype = get_exp_type g e in
+		let gpost = get_src_postcontext srctype in
+		(* G_out(x) = G_post(x) if x is in Dom(G_post)
+			    = G(x) o.w *)
+		let gout = VarLocMap.merge (fun key left right -> begin match (left, right) with
+							| Some x, Some y -> left
+							| None, right -> right 
+							| left, None  -> None (* error *)
+							end) gpost g
+		in
+		gout
+		 
+		
+    |Output(x, e) -> g
+    | _  -> raise (UnimplementedError "src flow sensitive typing not implemented for this statement")
+    (*
+    *)
+
+let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
+    |EAssign(rho, x, e) -> 
+		      let enctype = get_enc_exp_type  genc e in
+		      let encvarlabtype = join (pc, (get_enc_exp_label enctype)) in
+		      let genc1 = VarLocMap.add (Reg x) (fst enctype, encvarlabtype) genc in
+		      genc1
+    |EUpdate(rho, e1, e2) -> genc
+    |ESeq(rho, s1, s2)  ->  let g1 = enc_flow_sensitive_type_infer pc genc s1 in
+		            let g2 = enc_flow_sensitive_type_infer pc g1 s2 in
+		      	    g2 
+    |EESeq(rho, slist)  -> let rec seq_flow_sensitive genc = function
+				|[] -> genc
+				|s::tail ->
+			    		let genc' = enc_flow_sensitive_type_infer pc genc s in
+					seq_flow_sensitive genc' tail
+			   in seq_flow_sensitive genc slist
+
+    |ESet(rho, x)	-> genc
+    |ESkip(rho, rho') -> genc
+    |EIf(rho, e, s1, s2) ->   
+		      let pc' = get_enc_exp_label (get_enc_exp_type genc e) in
+    		      let g1 = enc_flow_sensitive_type_infer pc' genc s1 in
+		      let g2 = enc_flow_sensitive_type_infer pc' genc s2 in
+		      let g' = VarLocMap.merge (fun key bp1 bp2 -> 
+			begin match (bp1, bp2)  with
+			|(Some (b1, p1), Some (b2, p2)) -> 
+				if (check_enc_base_type b1 b2 ) then Some (join_enc_tau ((b1, p1), (b2, p2)))
+				else raise (TranslationError "Join of target contexts not possible. Different base types.")
+			| _ -> raise (TranslationError "Join of target contexts not possible. Domain of contexts is not same.") 
+			end ) g1 g2
+			in g'
+    |EWhile(rho, e, s) -> (* Compute Fixpoint *)
+		    let rec compute_fixpoint s gi'  = 
+		    	 let pc' = join (get_enc_exp_label (get_enc_exp_type gi' e), pc) in
+			 let gi'' = enc_flow_sensitive_type_infer pc' gi' s in
+		         let gn = VarLocMap.merge (fun key bp1 bp2 -> 
+						begin match (bp1, bp2)  with
+						|(Some (b1, p1), Some (b2, p2)) -> 
+								if (check_enc_base_type b1 b2 ) then Some (join_enc_tau ((b1, p1), (b2, p2)))
+								else raise (TranslationError "Join of enclave contexts not possible. Different base types.")
+						| _ -> raise (TranslationError "Join of enclave contexts not possible. Domain of contexts is not same.") 
+						end ) genc gi''
+			in 
+			 if (VarLocMap.equal (fun a b -> if a = b then true else false) gi' gi'') then
+			 	gn
+			 else 
+				compute_fixpoint s  gn
+		     in compute_fixpoint s genc
+    |ECall (rho, e) ->  let enctype = get_enc_exp_type genc e in
+			let gencpost = get_enc_postcontext enctype in
+			(* Genc_out(x) = Genc_post(x) if x is in Dom(Genc_post)
+			    = Genc(x) o.w *)
+			let gencout = VarLocMap.merge (fun key left right -> begin match (left, right) with
+							| Some x, Some y -> left
+							| None, right -> right 
+							| left, None  -> None (* error *)
+							end) gencpost genc
+			in
+			gencout
+    |EOutput(rho, x, e) -> genc
+    | _  -> raise (UnimplementedError "Enclave flow sensitive typing not implemented for this statement")
+    (*
+    *)
+
 (* [gen_constraints g e] typegen_constraintss [e] in the context [g] generating a type and a set of constraints. Raise TypeError if constraints cannot be generated. *)
 (* Return type is a pair of constraint sets. First set are hard constraints of form P = Q, second set has conditional constraints of form If P then Q *)
-let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) : constr * constr2 * modeenv * modeset * enccontext * totalcost * encexp = 
- let m = ModeProgSet.add (rho, (Exp e)) ModeProgSet.empty in
+let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (eidmap:enclaveidmap) (eidrevmap:enclaveidrevmap) : constr * constr2 * modeset * enccontext * enclaveidmap* enclaveidrevmap*totalcost * encexp = 
  let ms = ModeSet.add rho ModeSet.empty in
   match e with
-    |Constant n -> (Constr.empty, Constr2.empty, m, ms, genc, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EConstant(rho,n))
+    |Constant n -> (Constr.empty, Constr2.empty, ms, genc, eidmap, eidrevmap,(PMonoterm (0, (Mono (Mode rho))), PMonoterm (0, (Mono (Mode rho)))), EConstant(rho,n))
     | Var x     ->  let srctype = get_exp_type g e in
 		    let genc' = if (VarLocMap.mem (Reg x) genc) then genc
 		    		else
 		    		  let enctype = translatetype srctype in
 				  VarLocMap.add (Reg x) enctype genc in 
-			begin match rho with
-			    |Normal -> let pol       = get_exp_label srctype in
-						       begin match pol with
-						       | High
-						       | Erase(_,_,_) -> (Constr.add (rho, Enclave) Constr.empty, Constr2.empty, m, ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EVar(rho, x))
-						       |_ -> (Constr.empty, Constr2.empty, m, ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EVar(rho,x))
-						       end 
-			    |Enclave ->  (Constr.empty, Constr2.empty, m, ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EVar(rho,x))         
-			    |ModeVar y -> 
-					  let pol    = get_exp_label srctype in
-                                                       begin match pol with
-                                                  	| High
-                                                  	| Erase(_,_,_) -> ((Constr.add (rho, Enclave) Constr.empty), Constr2.empty, m, ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EVar(rho,x))
-                                                  	|_ -> (Constr.empty, Constr2.empty, m, ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EVar(rho,x))                
-                                                	end
-			end 
+		    let pol    = get_exp_label srctype in
+                                 begin match pol with
+                               	| High
+                               	| Erase(_,_,_) -> ((Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) Constr.empty), Constr2.empty, ms, genc', eidmap, eidrevmap,
+								(PMonoterm (0, (Mono (Mode rho))), PMonoterm (0, (Mono (Mode rho)))), EVar(rho,x))
+                               	|_ -> (Constr.empty, Constr2.empty, ms, genc', eidmap, eidrevmap,(PMonoterm (0, (Mono (Mode rho))), PMonoterm (0, (Mono (Mode rho)))), EVar(rho,x))                
+                             	end
     |Loc l -> let srctype = get_exp_type g e in
 	      let genc' = if (VarLocMap.mem (Mem l) genc) then  genc
-			 else 
-			  let enctype = translatetype srctype in
-			  VarLocMap.add (Mem l) enctype genc in
+			   else 
+			  	let enctype = translatetype srctype in
+			  	VarLocMap.add (Mem l) enctype genc
+	      in
 	      let creftype = get_src_content_type srctype in (* Since gammasrc(loc) = b_p -> gammasrc(loc)|- (b_p ref)_l*)
 	      (* let creftype = srctype in  For locations, contenttype determine the label *) 
 	      let rho' = get_mode (VarLocMap.find (Mem l) genc') in
-	      begin match rho with 
-		| Normal ->
-			begin match get_exp_label creftype with
-				| Low -> 
-			      (Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))
-				| Erase(_,_,_)
-				| High -> raise TypeError
-	      		end
-		| Enclave ->
-			begin match get_exp_label creftype with
-					(* A low content location is unconstrained. *)
-				| Low -> (Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l) )
-				| Erase(_,_,_)
-				| High -> 
-						let c1, c2, m1, ms1 = 
-				(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
-						(Constr.add (rho', Enclave) c1, c2, m1, ms1, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))	
-	      		end
-		| ModeVar y ->
-			begin match get_exp_label creftype with
-				| Low -> 
-(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho',l) )
-				| Erase(_,_,_)
-				| High -> let c1, c2, m1, ms1 = 
-				(Constr.empty, Constr2.empty, ModeProgSet.add (rho', (EncExp (construct_enc_exp e rho rho'))) m, ModeSet.add rho' ms ) in
-					 (Constr.add (rho', Enclave) c1, c2, m1, ms1, genc', (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), ELoc(rho, rho', l))	
-	      		end
-	       end
+	      begin match get_exp_label creftype with
+			| Low -> (Constr.empty, Constr2.empty, ModeSet.add rho' ms, genc', eidmap, eidrevmap,(PMonoterm (0, (Mono (Mode rho))), PMonoterm (0, (Mono (Mode rho)))), ELoc(rho, rho',l) )
+			| Erase(_,_,_)
+			| High -> let c1, c2, ms1 = 
+				(Constr.empty, Constr2.empty, ModeSet.add rho' ms ) in
+			 (* p != L -> rho' = E *)
+			 (Constr.add (Modecond (rho', (Enclave (get_enclave_id rho')))) c1, c2, ms1, genc', eidmap, eidrevmap,
+					(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), ELoc(rho, rho', l))	
+	      end
     |Eq(e1, e2) -> 
-		   let c1, c2, m1, ms1, genc1, _, ee1 = gen_constraints_exp g rho e1 genc in
-		   let c3, c4, m2, ms2, genc2, _, ee2 = gen_constraints_exp g rho e2 genc1 in
-		   let c5, c6,m3, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeProgSet.union m1 m2, ModeSet.union ms1 ms2) in
+		   let c1, c2, ms1, genc1, eidmap1, eidrevmap1,_, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
+		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
 		   begin match get_exp_label (get_exp_type g e) with 
-		   | Low -> (c5, c6, m3, ms3, genc2, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EEq(rho, ee1, ee2) )
+		   | Low -> (c5, c6, ms3, genc2, eidmap2, eidrevmap2, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EEq(rho, ee1, ee2) )
 		   | Erase(_,_,_)
-		   | High -> (Constr.add (rho, Enclave) c5, c6, m3, ms3, genc2, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EEq(rho, ee1, ee2) )
+		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
+				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EEq(rho, ee1, ee2) )
 		   end
     |Plus(e1, e2) -> 
-		   let c1, c2, m1, ms1, genc1, _, ee1 = gen_constraints_exp g rho e1 genc in
-		   let c3, c4, m2, ms2, genc2, _, ee2 = gen_constraints_exp g rho e2 genc1 in
-		   let c5, c6,m3, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeProgSet.union m1 m2, ModeSet.union ms1 ms2) in
+		   let c1, c2, ms1, genc1, eidmap1,eidrevmap2,  _, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap2 in
+		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
 		   begin match get_exp_label (get_exp_type g e) with
-		   | Low -> (c5, c6, m3, ms3, genc2, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EPlus(rho, ee1, ee2))
+		   | Low -> (c5, c6, ms3, genc2, eidmap2, eidrevmap2, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EPlus(rho, ee1, ee2))
 		   | Erase(_,_,_)
-		   | High -> (Constr.add (rho, Enclave) c5, c6, m3, ms3, genc2, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EPlus(rho, ee1, ee2))
+		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
+				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EPlus(rho, ee1, ee2))
 		   end
-    |Lam(p,u,q,s)	 -> 
+    |Lam(gpre,p,u, gpost, q,s) -> 
     		   (*let srctype = get_exp_type g e in *)
-		   let srctype = (BtFunc(p, u), q) in 
+		   let srctype = (BtFunc(gpre,p, u, gpost), q) in 
 		   let enctype = translatetype srctype in
 	           let rho' = get_mode enctype in
-		   let rho'' = next_tvar () in
-		   let c1, c2, m1, ms1, genc1, scost, es = gen_constraints g rho'' s genc in
-			(* rho' = rho''*)
-		   let c3 = Constr.add (rho', rho'') c1 in
-			(* rho = rho'*)
-		   let c4, c5, m2, ms2, genc2 = (Constr.add (rho, rho') c3, c2, ModeProgSet.add (rho',(EncExp (construct_enc_lam_exp e es rho rho'))) m1, ModeSet.add rho' ms1, genc1) in 
+		   let gencpre = get_enc_precontext enctype in
+		   let gencpost = get_enc_postcontext enctype in
+		   let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, scost, es = gen_constraints p g rho' s genc eidmap eidrevmap true in
+		   (* rho = rho'*)
+		   let rhoid = (get_enclave_id  rho) in
+		   let rho'id = (get_enclave_id  rho') in
+		   let c4, c5, ms2, genc2 = (Constr.add (Modecond (rho, rho')) c1, c2, ModeSet.add rho' ms1, genc1) in 
+		   (* add bij = 0 *)
+		   let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
+		   let c6 = Constr.add (Eidcond (bij, 0)) c4 in 
+		   let ee = ELam(rho, rho',gencpre,p,u,gencpost,q,es) in
 			 begin match get_exp_label srctype with
-		  	 | Low -> (c4, c5, m2, ms2, genc2, scost, ELam(rho, rho',p,u,q,es))
-			 | Erase(_,_,_) 
-			 | High -> let c6 = (Constr.add (rho, Enclave) c4) in
-					(Constr.add (rho', Enclave) c6, c5, m2, ms2, genc2,scost, ELam(rho,rho',p,u,q,es))
+		  	 | Low -> (c6, c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
+			 | Erase(_,_,_)  (* q !=L -> rho = E *)
+			 | High -> (Constr.add (Modecond (rho, (Enclave rhoid))) c6 , c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
 		         end
-    |Deref e1	->  let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho e1 genc in
-		    let enclt =	get_enc_exp_type ee genc1  in
+    |Deref e1	->  let c1, c2,ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		    let enclt =	get_enc_exp_type genc1 ee  in
 		    let rho' = get_mode enclt in
+		    (*  e1 : b_p ref_q then get (p join q) *)
 		    let loctype = get_exp_type g e in
-			(* rho = N -> rho' = N *)
-		    let c3 = Constr2.add ((rho, Normal), [(rho', Normal)]) c2 in
+		    (* rho = N -> rho' = N *)
+		    let c3 = Constr2.add (Premodecond (rho, Normal), (Modecond (rho', Normal))) c2 in
+		    let rhoid = (get_enclave_id  rho) in
+		    (* rho' = E -> rho =E *)
+		    let c4 = Constr2.add (Premodecond (rho', (Enclave rhoid)), (Modecond (rho, (Enclave rhoid)))) c3 in
+		    let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
+		    let c5 = Constr2.add (Premodecond (rho', (Enclave rhoid)), (Eidcond (bij, 0))) c4 in
 			begin match get_exp_label loctype  with
-			| Low  -> (c1, c3, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1, ecost, EDeref(rho,ee))
-			| Erase(_,_,_)
-			| High -> let c4 = Constr.add (rho, Enclave) c1 in
-					(Constr.add (rho', Enclave) c4, c3, (ModeProgSet.union m1 m), ModeSet.union ms1 ms, genc1,ecost, EDeref(rho,ee))
+			| Low  -> (c1, c5, ModeSet.union ms1 ms, genc1, eidmap2, eidrevmap2, ecost, EDeref(rho,ee))
+			| Erase(_,_,_) (* p join q !=L -> rho = rho' = E *)
+			| High -> let c6 = Constr.add (Modecond (rho, (Enclave rhoid ))) c1 in
+				  let c7 = Constr.add (Modecond (rho', (Enclave rhoid))) c6 in
+				  (Constr.add (Eidcond (bij,0)) c7, c5, ModeSet.union ms1 ms, genc1, eidmap2, eidrevmap2, ecost, EDeref(rho,ee))
 			end  
-    |True	-> (Constr.empty, Constr2.empty, m, ms, genc, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))),ETrue rho )
-    |False-> (Constr.empty, Constr2.empty, m, ms, genc,(PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))), EFalse rho )
-    |Isunset x -> (Constr.empty, Constr2.empty, m, ms, genc, (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))),EIsunset(rho,x) )
-    | _ -> raise UnimplementedError
+    |True	-> (Constr.empty, Constr2.empty,ms, genc, eidmap, eidrevmap, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))),ETrue rho )
+    |False-> (Constr.empty, Constr2.empty,ms, genc, eidmap, eidrevmap, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EFalse rho )
+    |Isunset x -> (Constr.empty, Constr2.empty, ms, genc, eidmap, eidrevmap, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))),EIsunset(rho,x) )
+
 
 (* + Maintain a different set for collecting implication constraints
      e.g: rho = E -> rho' = E 
@@ -325,252 +416,296 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) :
    + modeenv - maps rho to program statements and expressions - for readability
    + modeset - set of mode variables
 *)
-and gen_constraints (g:context) (rho: mode) (s0:stmt) (genc:enccontext) : constr * constr2 * modeenv * modeset*enccontext*totalcost * encstmt = 
- let m = ModeProgSet.add (rho, (Stmt s0)) ModeProgSet.empty in
+and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:enccontext) (eidmap: enclaveidmap) (eidrevmap:enclaveidrevmap) (toplevel:bool) : constr * constr2 * modeset * context * enccontext * enclaveidmap * enclaveidrevmap* totalcost * encstmt = 
  let ms = ModeSet.add rho ModeSet.empty in
   match s0 with
-    | Skip ->let rho' = next_tvar () in
-		      let entrycost = compute_assign_entry_cost rho rho' in
-		      let trustedcost = compute_assign_trusted_cost rho rho' in
- 		      let totalc = (entrycost, trustedcost) in
-		 (Constr.empty, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) Constr2.empty), m, ms, genc, totalc, ESkip (rho, rho'))
-
-    | Assign(x, e) -> let rho' = next_tvar () in (* for e *)
-		      let rho'' = next_tvar () in (* for Var x *)
-		      let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho' e genc in
-		      let c3, c4, m2, ms2, genc2, _, _ = gen_constraints_exp g rho'' (Var x) genc1 in
-		      let c5, c6 = (Constr.union c1 c3, Constr2.union c2 c4) in
-		      let m4, ms4 = (ModeProgSet.union m m1, ModeSet.union ms ms1) in 
-		      let m5, ms5 = (ModeProgSet.union m2 m4, ModeSet.union ms2 ms4) in 
-			(* gammaenc(x) = b s.t. gammaenc|-e:b *)
-		      let enclt1 = (VarLocMap.find (Reg x) genc2) in
-		      let enclt2 = (get_enc_exp_type ee genc2) in
-
-		      let t1 = gen_constraints_type enclt1 enclt2 in
-		      let c7 = update_constraints t1 c5 in			
+    | Assign(x, e) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      (* Update source typing context *)
+		      let g2 = src_flow_sensitive_type_infer pc g s0 in
+		      (* get enclave type of ee *)
+		      let enclt = get_enc_exp_type genc1 ee in
+		      let varlabtype = join (pc, (get_exp_label enclt)) in
+		      (* update genc1 *)
+		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
+		      let totalc = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in
+		      let estmt = EAssign(rho, x, ee) in
+		      let ms2 = ModeSet.union ms ms1 in
+		      begin match varlabtype with
+			| Erase(_,_,_)
+			| High -> let c3 = (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c1) in
+				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt)
+			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt)
+		      end
+    |Update(e1, e2) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		      let c3, c4, ms2, genc2, eidmap2, eidrevmap2, ecost, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
 		
-		       (* rho = E -> rho' = rho'' = E *)
-		      let c8 = Constr2.add ((rho, Enclave),[(rho', Enclave); (rho'', Enclave)]) c6 in
+		      let c5, c6 = (Constr.union c1 c3, Constr2.union c2 c4) in
+		      let ms3 = ModeSet.union ms ms1 in 
+		      let ms4 = ModeSet.union ms2 ms3 in 
 
-		      let entrycost = compute_assign_entry_cost rho rho' in
-			(* x:=e adds a cost of 1 if (a) rho = E or (2) rho = N and rho' = E *)
-		      let trustedcost = compute_assign_trusted_cost rho rho' in
-			(* Do some optimization to avoid writing 0 cost *)
-			let totalc = if cost_is_zero ecost then
- 		      			(entrycost,trustedcost)
-				     else
- 		      			(PPlus (fst ecost, entrycost),PPlus (snd ecost, trustedcost)) in
-		      
+		      let totalc = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in
+		      let estmt = EUpdate(rho, ee1, ee2) in
+
+
+		      (* Get the translated type of e1 *)
+		      let refenclt1 = (get_enc_exp_type genc2 ee1 ) in
+		      let rho'      = get_mode refenclt1 in 
+		      let enclt1   = get_content_type refenclt1 in (* Fetches pointer type e.g.: ((int_h) ref) gives int_h *)
+		      let enclt2   =  (get_enc_exp_type genc2 ee2 ) in
+
+		      (* types of content and rhs should match   *)
+		      let t1       = gen_constraints_type enclt1 enclt2 in 
+		      let (c7, eidmap2', eidrevmap2')   = update_constraints t1 c5 eidmap2 eidrevmap2 in	
 			
-			begin match rho with 
-			 | Normal ->   begin match get_exp_label enclt1 with
-					|Low -> (c7, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
-					|Erase(_,_,_)
-					|High -> raise TypeError
-					end
-			 |Enclave -> let c9 = Constr.add (rho'', Enclave) c7 in
-					(* Use c6 or c8, does not make difference to solver *)
-					(Constr.add (rho', Enclave) c9, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
-			 |ModeVar y -> begin match get_exp_label enclt1 with
-					|Low -> (c7, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
-					|Erase(_,_,_)
-					|High -> let c9 = Constr.add (rho'', Enclave) c7 in 
-						(Constr.add (rho', Enclave) c9, c8, m5, ms5, genc2, totalc, EAssign(rho, x, ee))
-					end
-			end
-				
-    | Update(e1, e2) -> let rho'' = next_tvar () in
-			let c1, c2, m1, ms1, genc1, _, ee1 =   gen_constraints_exp g rho'' e1 genc in
-			let c3, c4, m2, ms2, genc2, ecost, ee2 =   gen_constraints_exp g rho'' e2 genc1 in
-		        let c5, c6 = (Constr.union c1 c3, Constr2.union c2 c4) in
-		        let m4, ms4 = (ModeProgSet.union m m1, ModeSet.union ms ms1) in 
-		        let m5, ms5 = (ModeProgSet.union m2 m4, ModeSet.union ms2 ms4) in 
+		      let rhoid = get_enclave_id rho in
+		      let rho'id =get_enclave_id rho' in
 
-			(* Get the translated type of e1 *)
-		        let refenclt1 = (get_enc_exp_type ee1 genc2) in
-			let rho'      = get_mode refenclt1 in 
-			let enclt1   = get_content_type refenclt1 in (* Fetches pointer type e.g.: ((int_h) ref) gives int_h *)
-			let enclt2   =  (get_enc_exp_type ee2 genc2) in
+		      (* rho'= E -> rho = E *)
+		      let c8 = Constr2.add ( Premodecond (rho', (Enclave rho'id)), (Modecond (rho, (Enclave rho'id)))) c6 in
+		      let (bij, eidmap3, eidrevmap3) = get_bij_var rho rho' eidmap2' eidrevmap2' in
+		      (* rho'= E -> bij = 0 *)
+		      let c9 = Constr2.add ( Premodecond (rho', (Enclave rho'id)), (Eidcond (bij,0)))  c8 in
 
-			(* types of content and rhs should match   *)
-			let t1       = gen_constraints_type enclt1 enclt2 in 
-		        let c7       = update_constraints t1 c5 in			
-			
-			let entrycost = compute_assign_entry_cost rho rho'' in
-		        let trustedcost = compute_assign_trusted_cost rho rho'' in
-			(* Do some optimization to avoid writing 0 cost *)
-			let totalc = if cost_is_zero ecost then
- 		      			(entrycost,trustedcost)
-				     else
- 		      			(PPlus (fst ecost, entrycost),PPlus (snd ecost, trustedcost)) in
-		      
-			
-			begin match rho with
-			    |Normal  -> 
-		        		let c9, c10,m6, ms6 = begin match get_exp_label enclt1 with
-					(* rho' = E -> rho'' = E *) 
-					| Low -> (c7, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5)
-					| Erase(_,_,_) 
-					| High -> (* p != L -> rho' = rho'' = E *)
-						 let c8 = Constr.add (rho', Enclave) c7 in
-						  (Constr.add (rho'', Enclave) c8, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5)
-	 
-	      				end 
-					in
-					(c9, c10, m6, ms6, genc2, totalc, EUpdate(rho, ee1, ee2))
-
-			    |Enclave -> 
-		        		let c8, c9, m6, ms6, es = begin match get_exp_label enclt1 with
-					(* A low content location is unconstrained. *)
-					| Low -> (c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2)) 
-					| Erase(_,_,_)
-					| High -> 
-						(Constr.add (rho', Enclave) c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2))
-	      				end in
-					 (* rho = E -> rho'' = E. Specifically note that if rho = E does not imply rho' = E *)            
-				        ((Constr.add (rho'', Enclave) c8), c9, m6, ms6, genc2, totalc,es)
-
-			    |ModeVar y -> 
-					let c8, c9,m6, ms6, es = begin match get_exp_label enclt1 with
-					(* rho' = Enclave -> rho''= Enclave *)
-					| Low -> 
-						(c7, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, 
-							ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5, EUpdate(rho, ee1, ee2))
-					| Erase(_,_,_)
-					| High -> let c8', c9', m6', ms6' = 
-				         (Constr.add (rho', Enclave) c7, c6, ModeProgSet.add (rho', (EncExp (construct_enc_exp e1 rho rho'))) m5, ModeSet.add rho' ms5 ) in
-						 (Constr.add (rho'', Enclave) c8', c9', m6', ms6', EUpdate(rho, ee1, ee2))	
-	      				end in
-					 (* rho = E -> rho'' = E and rho' = E -> rho'' = E *) 
-					 let c10 = Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c9 in
-					 (c8, (Constr2.add ((rho, Enclave), [(rho'', Enclave)]) c10),m5, ms5, genc2, totalc, es)
-			end 
-    |If(e, s1, s2) -> let rho' = next_tvar () in (* for e *)
-		      let rho''= next_tvar () in (* for c1 *)
-		      let rho''' = next_tvar () in (* for c2 *)
-		      let entrycost = compute_if_entry_cost rho rho' rho'' rho''' in
-			(* if e then c1 else c2 : trusted cost will be similar to assign statement depending on rho mode *)
-		      let trustedcost = compute_assign_trusted_cost rho rho' in
-		      let c1, c2, m1, ms1, genc1, _, ee = gen_constraints_exp g rho' e genc in
-		      let c3, c4, m2, ms2, genc2, fcost1, es1 = gen_constraints g rho'' s1 genc1 in
-		      let c5, c6, m3, ms3, genc3, fcost2, es2 = gen_constraints g rho''' s2 genc2 in
-		      let fcost3 = (PPlus(fst fcost1, fst fcost2), PPlus(snd fcost1, snd fcost2)) in
-	     	      let totalc = (PPlus(entrycost, fst fcost3), PPlus(trustedcost, snd fcost3)) in
-		      begin match rho with
-			    |Normal ->  
-					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
-					 	     (* rho'= E -> rho'' = rho''' = E *)
-						     (c9, (Constr2.add ((rho', Enclave), [(rho'', Enclave);(rho''', Enclave)]) c10), (ModeProgSet.union m m5), 
-								ModeSet.union ms ms5,genc3, totalc, EIf(rho, ee, es1, es2)) 
-			    |Enclave -> 
-					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
-					let c11     = (Constr.add (rho', Enclave) c9) in
-					let c12     = (Constr.add (rho'', Enclave) c11) in
-					let c13     = (Constr.add (rho''', Enclave) c12) in
-						     ((Constr.add (rho, Enclave) c13), c10, (ModeProgSet.union m m5), ModeSet.union ms ms5, genc3, totalc, EIf(rho, ee, es1, es2))
-			    |ModeVar y -> 
-					let c7, c8, m4, ms4 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let c9, c10, m5, ms5= ((Constr.union c5 c7), (Constr2.union c6 c8), (ModeProgSet.union m4 m3), ModeSet.union ms3 ms4) in
-							(* rho = E -> rho' = rho''= rho''' = E *)
-							(* rho' = E -> rho''= rho''' = E *)
-					let c11 = (Constr2.add ((rho', Enclave), [ (rho'', Enclave); (rho''', Enclave)]) c10) in
-							(c9, (Constr2.add ((rho, Enclave), [(rho', Enclave); (rho'', Enclave); (rho''', Enclave)]) c11), (ModeProgSet.union m m5),
-								 ModeSet.union ms ms5, genc3, totalc, EIf(rho, ee, es1, es2))
-			    end	
+		      begin match get_exp_label enclt1 with
+			| Erase(_,_,_)	(* rho' = E, rho = E *)
+			| High -> let c10 = (Constr.add (Modecond (rho, (Enclave rhoid))) c7) in
+				  let c11 = (Constr.add (Modecond (rho', (Enclave rhoid))) c10) in
+				  (* bij = 0 *)
+				  let (bij, eidmap4, eidrevmap4)  = get_bij_var rho rho' eidmap3 eidrevmap3 in 
+				   (Constr.add (Eidcond (bij, 0)) c11,	c9, ms4, g, genc2, eidmap4, eidrevmap4, totalc, estmt)
+			| _ -> (c7, c9, ms4, g, genc2, eidmap3, eidrevmap3, totalc, estmt)
+		      end
     |Seq(s1, s2)  -> let seqlist = flattenseq s0 in
-		     let rec seqloop c1 c2 m ms scost g genc eslist = function
-			| [] -> (c1, c2, m, ms, genc, scost, eslist)
-			| xs::tail -> let rho' = next_tvar () in
-				    let c3, c4, m1, ms1, genc1, scost1, es1 = gen_constraints g rho' xs genc in
-				    let totalc = (PPlus (fst scost, fst scost1), PPlus (snd scost, snd scost1)) in
-				    seqloop (Constr.union c1 c3) (Constr2.union c2 c4) (ModeProgSet.union m m1) (ModeSet.union ms ms1) totalc g genc1 (eslist @ [es1]) tail
+			let rec seqloop pc c1 c2 rhoi  ms scost g genc eidmap eidrevmap eslist = function
+			| [] -> (c1, c2, ms, g,  genc, eidmap, eidrevmap, scost, eslist)
+			| xs::tail -> 
+				    let  c3, c4, ms1, g1, genc1, eidmap1, eidrevmap1, scost1, es1 = gen_constraints pc g rhoi xs genc eidmap eidrevmap false in
+				    if not (List.length tail = 0) then
+				    	let rhoj = next_tvar () in
+					let (bij, eidmap2, eidrevmap2) = get_bij_var rhoi rhoj eidmap1 eidrevmap1 in
+				    	(* Check if genc1 has any high registers. If yes, then generate the constraints *)
+				     	let allreglow = check_typing_context_reg_low genc1 in
+				     	let c5 =
+							if (not allreglow) then
+					       			(* ~(rho=N /\ rhoi = E /\ rho_(i+1) = N) *)
+					       			let t = (Constr.add (Cnfclause [Modecond (rho, Enclave (get_enclave_id rho)); Modecond (rhoi, Normal); 
+											Modecond (rhoj, Enclave (get_enclave_id rhoj))]) c3) in 
+					       			(* (rho=E \/ ( rhoi = E /\ rho_(i+1) = E) -> b_i(i+1) = 0) *)
+					        		(Constr.add (Cnfclause [Modecond (rho, Enclave (get_enclave_id rho)); Modecond (rhoi, Normal); 
+										Modecond (rhoj, Normal); Eidcond (bij, 0)]) t)
+					       		else
+								c3
+ 				     	in
+				     	let (c6, eidmap3, eidrevmap3) = begin match rho with
+						| Normal -> (c4, eidmap2, eidrevmap2) (* no enclave id exists *)
+						| _ ->
+ 						        let c4' = 
+				     			(* rho = E -> rhoi = E *)
+				     			Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Modecond (rhoi, (Enclave (get_enclave_id rho))))) c4 
+							in
+				     			(* rho = E -> bij = 0 *)
+							let (bij, eidmap3, eidrevmap3) = get_bij_var rho rhoi eidmap2 eidrevmap2 in
+				     			(Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Eidcond (bij, 0))) c4', eidmap3, eidrevmap3)
+							 
+						end
+					in
+				     	let entrycost = compute_one_seq_entry_cost rho rhoi rhoj bij (PPlus (fst scost, fst scost1)) in
+				     	(* Trusted cost on next statement in the list *)
+				     	let trustedcost = if (List.length tail = 0) then
+								(PPlus (snd scost, snd scost1)) 
+							  else
+								compute_one_seq_trusted_cost rho rhoj (List.hd tail) (PPlus (snd scost, snd scost1))
+				     	in
+				     	let totalc = (entrycost, trustedcost) in
+				     	seqloop pc (Constr.union c1 c5) (Constr2.union c2 c6) rhoj (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
+				     else
+				     	let (c6, eidmap3, eidrevmap3) = begin match rho with
+						| Normal -> (c4, eidmap1, eidrevmap1) (* no enclave id exists *)
+						| _ ->
+ 						        let c4' = 
+				     			(* rho = E -> rhoi = E *)
+				     			Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Modecond (rhoi, (Enclave (get_enclave_id rho))))) c4 
+							in
+				     			(* rho = E -> bij = 0 *)
+							let (bij, eidmap3, eidrevmap3) = get_bij_var rho rhoi eidmap1 eidrevmap1 in
+				     			(Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Eidcond (bij, 0))) c4', eidmap3, eidrevmap3)
+							 
+						end
+					in
+				    	(* Check if genc1 has any high registers. If yes, raise error. Translation not possible*)
+				     	let allreglow = check_typing_context_reg_low genc1 in
+					if (not allreglow) && toplevel then raise (TranslationError "Registers may contain secrets when exiting enclave.")
+					else
+				     	seqloop pc (Constr.union c1 c3) (Constr2.union c2 c6) rhoi (ModeSet.union ms ms1) scost g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
 		     in
-			(* initially zero cost, compute later *)
-		     let zerocost = (PMonoterm (0, (Mono rho)), PMonoterm (0, (Mono rho))) in 
-		     let c1, c2, m1, ms1, genc1, fcost, eslist = seqloop Constr.empty Constr2.empty m ms zerocost  g genc [] seqlist in
+		     (* initially zero cost, compute later *)
+		     let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
+		     let rho0 = next_tvar () in
+		     let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, fcost, eslist = seqloop pc Constr.empty Constr2.empty rho0  ms zerocost  g genc  eidmap eidrevmap [] seqlist in
 		     (* compute additional entry cost *)
 		     let rho1 = begin match eslist with
 				|[] -> raise EmptySeqError
 				|xs::tail-> getstmtmode xs
 				end in
 		     (* init statement cost. e.g., c1;c2;c3..., then initcost gets entry cost for c1 as (1-rho)rho1 *)
-		     let initcost = (PMinus (PMonoterm (1, Mono rho), (PMonoterm (1, (Poly (rho, (Mono rho1))))))) in
-		     let seqentrycost = compute_seq_entry_cost eslist rho initcost in
-		     let totalc = (PPlus (fst fcost, seqentrycost), snd fcost) in
-		     let es = (EESeq (rho, eslist)) in
-		     (c1, c2, m1, ms1, genc1, totalc, es) 	
-    |Call e -> let rho' = next_tvar () in
-			let c1, c2, m1, ms1, genc1, ecost, ee = gen_constraints_exp g rho' e genc in
-			let m2, ms2 = (ModeProgSet.union m m1, ModeSet.union ms ms1) in
-			(* get mode of e *)
-			let rho'' = get_mode (get_enc_exp_type ee genc1) in
-			let entrycost = compute_assign_entry_cost rho rho' in
-		        let trustedcost = compute_assign_trusted_cost rho rho' in
-			(* Do some optimization to avoid writing 0 cost *)
-			let totalc = if cost_is_zero ecost then
- 		      			(entrycost,trustedcost)
-				     else
- 		      			(PPlus (fst ecost, entrycost),PPlus (snd ecost, trustedcost)) in
-		      
-			begin match rho with
-					(* rho' = rho'' *)
-			  | Normal  -> (Constr.add (rho', rho'') c1, c2, m2 , ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
-			  | Enclave -> let c3 = (Constr.add (rho', Enclave) c1) in
-						(Constr.add (rho', rho'') c3, c2, m2, ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
-			  | ModeVar x -> 
-						 (* rho = E -> rho ' = E *)
-					 	 (Constr.add (rho', rho'') c1, (Constr2.add ((rho, Enclave), [(rho', Enclave)]) c2), m2, ModeSet.add rho'' ms2, genc1, totalc, ECall(rho, ee))
-			end 
-   |While(e, s) -> let rho' = next_tvar () in
-   		   let rho'' = next_tvar () in
-		 
-		   let entrycost = compute_assign_entry_cost rho rho'' in (* Note that the entry cost function gets simplified to this *)
-		   let trustedcost = compute_assign_trusted_cost rho rho'' in (* Note that the trusted cost function gets simplified to this *)
-		   let c1, c2, m1, ms1, genc1, _, ee = gen_constraints_exp g rho' e genc in
-		   let c3, c4, m2, ms2, genc2, fcost1, es = gen_constraints g rho'' s genc1 in
-		   let totalc = (PPlus (fst fcost1, entrycost), PPlus (snd fcost1, trustedcost)) in
-			   begin match rho with
-			   |Normal   -> 
-					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-						     (* rho'=E -> rho'' = E *)
-			    (c5, Constr2.add ((rho', Enclave), [(rho'', Enclave)]) c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es))  
-			   |Enclave  -> 
-					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-					let c7     = Constr.add (rho', Enclave) c5 in
-						     (* rho = E -> rho' = rho'' = E *)
-						     (Constr.add (rho'', Enclave) c7, c6, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es)) 
-			   |ModeVar x -> 
-					let c5, c6, m3, ms3 = ((Constr.union c1 c3), (Constr2.union c2 c4), (ModeProgSet.union m1 m2), ModeSet.union ms1 ms2) in
-						     (* rho = E -> rho' = rho'' = E *)
-						     (* rho' = E -> rho'' = E *)
-                                        let  c7 =    Constr2.add ((rho, Enclave),[(rho', Enclave); (rho'', Enclave)]) c6 in         
-						     (c5, Constr2.add ((rho', Enclave),[(rho'', Enclave)]) c7, (ModeProgSet.union m m3), ModeSet.union ms ms3, genc2, totalc, EWhile(rho, ee, es))
-			   end
-    |Output(x, e) -> let rho' = next_tvar () in
-		     let entrycost = compute_assign_entry_cost rho rho' in 
-		     let trustedcost = compute_assign_trusted_cost rho rho' in 
-		     let totalc = (entrycost, trustedcost) in
-	             let c1, c2, m1, ms1, genc1, _, ee = gen_constraints_exp g rho' e genc in
-			  begin match rho with
-			  | Normal   -> 
-					begin match x with
-					| 'H'  -> (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
-					|_     -> (c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
-					end
-			 | Enclave  -> 
-				       (Constr.add (rho', Enclave) c1, c2, (ModeProgSet.union m m1), ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
-			 | ModeVar y -> 
-					let c3 = (Constr2.add ((rho, Enclave), [(rho', Enclave)]) c2) in
-					begin match x with
-					|'H' -> (Constr.add (rho', Enclave) c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
-					| _  -> (c1, c3, ModeProgSet.union m m1, ModeSet.union ms ms1, genc1, totalc, EOutput(rho, x, ee))
-					end 
+		     let initentrycost = (PMinus (PMonoterm (1, (Mono (Mode rho1))), (PMonoterm (1, (Poly ((Mode rho), ((Mono (Mode rho1))))))))) in
+		     let inittrustedcost = if List.length seqlist = 0 then
+						raise (TranslationError "Invalid sequence list")
+					   else
+					       let s = List.hd seqlist in
+					       let sweight = num_atomic_stmt s in
+					       (PMinus (PMonoterm (sweight, (Mono (Mode rho1))), (PMonoterm (sweight, (Poly ((Mode rho), ((Mono (Mode rho1)))))))))
+		     in
+		     let seqentrycost = (PPlus (fst fcost, initentrycost)) in
+		     let seqtrustedcost = (PPlus (snd fcost, inittrustedcost)) in
+		     (* Add diffenclave id cost to trusted cost *)
+		     let rec compute_diff_id_cost eslist (rho:mode) eidmap eidrevmap fcost =
+ 			begin match eslist with
+		     	| [] -> (fcost, eidmap, eidrevmap)
+		     	| xs::tail -> (* iterate on tail *)
+				    let one_diffid_cost, eidmap2, eidrevmap2 = compute_seq_diffencid_cost tail rho xs eidmap eidrevmap fcost in
+				    compute_diff_id_cost tail rho eidmap2 eidrevmap2 one_diffid_cost
 			end
-    | Set x	-> let rho' = next_tvar () in (* x is always low for a well-typed source program *)
-		      let entrycost = compute_assign_entry_cost rho rho' in
-		      let trustedcost = compute_assign_trusted_cost rho rho' in
- 		      let totalc = (entrycost, trustedcost) in
-				(Constr.empty, Constr2.empty, m, ModeSet.add rho' ms, genc, totalc, ESet(rho, x))
-    | _ -> raise UnimplementedError
+		     in
+		     let (total_diff_id_cost, eidmap3, eidrevmap3) = compute_diff_id_cost eslist rho eidmap1 eidrevmap1 seqtrustedcost in			   
+		     let totalc = (seqentrycost, total_diff_id_cost) in
+		     let es = (EESeq (rho, eslist)) in
+		     (c1, c2, ms1, g1, genc1, eidmap3, eidrevmap3, totalc, es) 
+    |If(e, s1, s2) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      let rho1 = next_tvar() in
+		      let rho2 = next_tvar() in
+		      let pc' = get_exp_label (get_exp_type g e) in
+		      (* Note use only genc1! *)
+		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost1, es1 = gen_constraints pc' g rho1 s1 genc1 eidmap1 eidrevmap1 false in
+		      let c5, c6, ms3, g3, genc3, eidmap3, eidrevmap3, fcost2, es2 = gen_constraints pc' g rho2 s2 genc1 eidmap2 eidrevmap2 false in
+		      let c7, c8 = (Constr.union c1 c3, Constr2.union c2 c4) in
+		      let c9, c10 = (Constr.union c5 c7, Constr2.union c6 c8) in
+		      let allreglow1 = check_typing_context_reg_low genc2 in
+		      let c11 = if (not allreglow1) then 
+					(* Add constraint ~(rho=N) *)
+					Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c9	
+				else
+					c9
+		       in
+		      let allreglow2 = check_typing_context_reg_low genc3 in
+		      let c12 = if (not allreglow2) then 
+					(* Add constraint ~(rho=N) *)
+					Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c11	
+				else
+					c11
+			in
+			(* Add constraint rho = E -> rhoi = E *)
+			let c13 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Modecond (rho1, Enclave (get_enclave_id rho))) c10 in
+			let (bij, eidmap', eidrevmap') = get_bij_var rho rho1 eidmap3 eidrevmap3 in
+			let c13' = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c13 in
+			let c14 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Modecond (rho2, Enclave (get_enclave_id rho))) c13' in
+			let (bij', eidmap'', eidrevmap'') = get_bij_var rho rho1 eidmap' eidrevmap' in
+			let c14' = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij', 0)) c14 in
+
+			let es0 = EIf(rho, ee, es1, es2) in
+			(* Update source and target typing contexts *)
+			let g' = src_flow_sensitive_type_infer pc g s0 in
+			let genc' = enc_flow_sensitive_type_infer pc genc1 es0 in
+
+		        (* After join, enclave modes should match *)
+		        let t1       = gen_constraints_join genc2 genc3 in 
+		        let (c15, eidmap''', eidrevmap''')       = update_constraints t1 c12 eidmap'' eidrevmap'' in	
+			
+			(* Handle cost for introducing enclave. i.e. rho = N and rho_i =E *)
+			let init_entry_cost = PPlus (fst ecost, fst fcost1) in
+			let if_entry_cost = (* (1-rho)rho1 + (1-rho)rho2 *)
+					   compute_if_entry_cost rho rho1 rho2 (PPlus (init_entry_cost, fst fcost2)) in
+			let init_trusted_cost = PPlus (snd ecost, snd fcost1) in
+			let if_trusted_cost = 
+					   compute_if_trusted_cost rho rho1 rho2 s1 s2 (PPlus (init_trusted_cost, snd fcost2)) in
+			let (b12, eidmap4, eidrevmap4)  = get_bij_var rho1 rho2 eidmap''' eidrevmap''' 
+			in 
+			let if_diffid_cost = (* FIXME MAJOR: We are being locally maximum in using b12. Ideally it should take all id's into consideration *) 
+					   compute_if_diffid_cost  rho rho1 rho2 b12 if_trusted_cost 
+			in
+		 	let (b1, eidmap5, eidrevmap5) = get_bij_var rho rho1 eidmap4 eidrevmap4 in
+		 	let (b2, eidmap6, eidrevmap6) = get_bij_var rho rho2 eidmap5 eidrevmap5 in
+			let ms4 = ModeSet.union ms ms1 in
+			let ms5 = ModeSet.union ms2 ms3 in 
+			begin match (get_exp_label (get_exp_type g e)) with
+				| Low -> (c15, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost),  es0)
+				| Erase(_,_,_)  (* Add rho = rho1 =rho2 = E *)
+				| High ->let c16 = (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c15) in
+					 let c17 = (Constr.add (Modecond (rho1, Enclave (get_enclave_id rho))) c16) in
+					 let c18 = (Constr.add (Eidcond (b1, 0)) c17) in 
+					 let c19 = (Constr.add (Eidcond (b2, 0)) c18) in 
+					(Constr.add (Modecond (rho2, Enclave (get_enclave_id rho))) c19, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost), es0)
+			end
+    |Call e -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      let totalc = ecost in
+		      (* get mode of e *)
+		      let rho' = get_mode (get_enc_exp_type genc1 ee) in
+		      let btfunctype = get_exp_type  g e in
+		      let gpre = get_src_precontext btfunctype in
+		      let gpost = get_src_precontext btfunctype in
+		      let ebtfunctype = get_enc_exp_type  genc1 ee in
+		      let gencpre = get_enc_precontext ebtfunctype in
+		      let gencpost = get_enc_precontext ebtfunctype in
+		      (* TODO: Check g <= gpre, gpost <= gout *)
+		      let es0 = ECall(rho, ee) in 
+		      let gout = src_flow_sensitive_type_infer pc g s0 in
+		      let gencout = enc_flow_sensitive_type_infer pc genc1 es0 in
+		      (* rho = rho' *)
+		      let c3 = (Constr.add (Modecond (rho, rho')) c1) in
+		      let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
+			(Constr.add (Eidcond (bij, 0)) c3, c2, ModeSet.union ms ms1, gout, gencout, eidmap2, eidrevmap2, totalc, ECall(rho, ee))
+
+    |While(e, s) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      let rho' = next_tvar() in
+		      let pc' = get_exp_label (get_exp_type g e) in
+		      (* Note use only genc1! *)
+		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost, es = gen_constraints pc' g rho' s genc1 eidmap1 eidrevmap1 false in
+		      let c7, c8 = (Constr.union c1 c3, Constr2.union c2 c4) in
+		      let allreglow1 = check_typing_context_reg_low genc2 in
+		      let c9 = if (not allreglow1) then 
+					(* Add constraint ~(rho=N) *)
+					Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c7	
+				else
+					c7
+		       in
+			(* Add constraint rho = E -> rho' = E *)
+			let c10 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Modecond (rho', Enclave (get_enclave_id rho))) c8 in
+			let (bij, eidmap', eidrevmap') = get_bij_var rho rho' eidmap2 eidrevmap2 in
+			let c11 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c10 in
+
+			let es0 = EWhile(rho, ee, es) in
+			(* Update source and target typing contexts *)
+			let g' = src_flow_sensitive_type_infer pc g s0 in
+			let genc' = enc_flow_sensitive_type_infer pc genc1 es0 in
+			
+			(* REVISIT: Should join result in generating constraints for mode?
+				  Not necessary. No new mode variables get introduced during join here
+			 *)
+			
+			(* Handle cost for introducing enclave. i.e. rho = N and rho' =E *)
+			let while_entry_cost = (* (1-rho)rho'  *)
+					   compute_while_entry_cost rho rho' (fst fcost) in
+			let while_trusted_cost = 
+					   compute_while_trusted_cost rho rho' s (snd fcost) in
+		 	let (b1, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap' eidrevmap' in
+			let ms3 = ModeSet.union ms ms1 in
+			begin match (get_exp_label (get_exp_type g e)) with
+				| Low -> (c9, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0)
+				| Erase(_,_,_)  (* Add rho = rho1= E *)
+				| High ->let c12 = (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c9) in
+					 let c13 = (Constr.add (Modecond (rho', Enclave (get_enclave_id rho))) c12) in
+					 let c14 = (Constr.add (Eidcond (b1, 0)) c13) in 
+					(c14, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0)
+			end
+		     
+    | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
+    (*
+    |Output(x, e) -> 
+    | Set x	-> 
+    | Skip ->
+    *)

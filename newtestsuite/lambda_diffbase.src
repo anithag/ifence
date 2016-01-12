@@ -1,0 +1,8 @@
+x:int_high; y:func({z:int_high},high, {}, {z:int_high})_high; z:int_low
+if x == 0 then
+ y := (lambda({z:int_high},low, {}, {z:int_high}).z:= z + 1)_high
+else
+ x:=0 
+fi;
+z:=0
+

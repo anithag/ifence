@@ -1,0 +1,8 @@
+
+set(cnd);
+enclave( if isunset(cnd) then x := 1  else x := 2  ;
+   )
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 

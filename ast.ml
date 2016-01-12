@@ -1,7 +1,8 @@
 (* variables *)
 type var = string
 type channel = char
-type mode = Enclave | Normal | ModeVar of var
+(* (E, id), N, (rho, id) *)
+type mode = Enclave of var | Normal | ModeVar of var * var
 
 module VarSet = Set.Make(struct
   type t = var
@@ -11,13 +12,25 @@ end)
 (* sets of condition variables *)
 type cndset = VarSet.t
 
+(* set of enclave identifiers *)
+type eidset = VarSet.t
+
+
+type varloc = Reg of var | Mem of int 
+
+(* maps with variables and locations as keys *)
+module VarLocMap = Map.Make(struct
+  type t = varloc
+  let compare = Pervasives.compare
+end)
+
 (* Base types *)
 type basetype = 
     BtInt                             (* int *)
   | BtBool                            (* bool *)
   | BtCond                            (* cond *)
   | BtRef of labeltype		     (* tau ref *)
-  | BtFunc of policy * cndset	     (* func *)
+  | BtFunc of context * policy * cndset * context	     (* func *)
 
 and
 labeltype = basetype * policy   
@@ -32,7 +45,7 @@ and policy =
 and exp =
     Var of var                      (* x *)
   | Loc of int
-  | Lam of policy * cndset * policy * stmt   (* (lambda(p, {}).stmt)_q *)
+  | Lam of context * policy * cndset * context * policy * stmt   (* (lambda(G_pre, p, {}, G_post).stmt)_q *)
   | Constant of int                      (* n *)
   | Plus of exp * exp               (* e1 + e2 *)
   | True                            (* true *)
@@ -53,6 +66,10 @@ stmt =
   | Call of exp
   | Set of var
 
+
+(* typechecking environments - maps variables to types *)
+and context = labeltype VarLocMap.t
+
 (* values *)
 type value = 
     VInt of int 
@@ -60,10 +77,28 @@ type value =
   | VFun of stmt 
   | VLoc of int 
 
+
+(* evaluation environments *)
+type env = value VarLocMap.t
+
+(* Encalve Base types *)
+type encbasetype = 
+    EBtInt                             (* int *)
+  | EBtBool                            (* bool *)
+  | EBtCond                            (* cond *)
+  | EBtRef of mode * enclabeltype	      (* tau ref *)
+  | EBtFunc of mode* enccontext* policy * cndset * enccontext   (* func *)
+
+and
+enclabeltype = encbasetype * policy   
+
+(* typechecking environments - maps variables to types *)
+and  enccontext = enclabeltype VarLocMap.t
+
 type encexp =
     EVar of mode * var                       (* mode |- x *)
   | ELoc of mode * mode * int		     (* mode |- l^ mode *)
-  | ELam of mode * mode * policy* cndset*policy* encstmt (* First mode|-lambda^mode(p,u)_q *)
+  | ELam of mode * mode * enccontext * policy* cndset * enccontext * policy* encstmt (* First mode|-lambda^mode(gpre, p,u, gpost)_q *)
   | EConstant of mode * int                  (* n *)
   | EPlus of mode * encexp * encexp          (* e1 + e2 *)
   | ETrue of mode                            (* true *)
@@ -87,32 +122,27 @@ and  encstmt =
 
 type progbody = Exp of exp | Stmt of stmt | EncExp of encexp
 
+type mode_cond= (mode * mode) 
+type eid_cond = (var * int) 
+type constr_cond = 
+ | Modecond of mode_cond  (* Represents (rho, id) = (Enclave, i) *) 
+ | Eidcond of eid_cond    (* Represents (b_ij = 0/1 *)
+ | Cnfclause of constr_cond list  (* Represents (rho, id) \/ (rho2, id2) \/ (rho3, id3) *)
+
 (* sets of pairs of types *)
 module Constr = Set.Make(struct
-  type t = mode * mode
+  type t = constr_cond
   let compare = Pervasives.compare
 end)
 
-type pre_cond =  mode * mode
-type post_cond= (mode * mode) list
+type pre_cond =  
+ |Premodecond of mode_cond   (* E.g: x = E -> *) 
+ |Preeidcond  of eid_cond * eid_cond   (* bij = 0 /\ bjk = 0 -> *)
 
 module Constr2 = Set.Make(struct
-  type t = pre_cond * post_cond
+  type t = pre_cond * constr_cond
   let compare = Pervasives.compare
 end)
-
-
-type varloc = Reg of var | Mem of int 
-
-(* maps with variables and locations as keys *)
-module VarLocMap = Map.Make(struct
-  type t = varloc
-  let compare = Pervasives.compare
-end)
-
-(* evaluation environments *)
-type env = value VarLocMap.t
-
 
 (* constraints *)
 type constr = Constr.t
@@ -128,10 +158,6 @@ end)
 
 (* mode substitutions *)
 type subst = mode ModeVarMap.t
-
-(* typechecking environments - maps variables to types *)
-type context = labeltype VarLocMap.t
-
 type program = context * stmt 
 
 (* maps with mode variables as keys *)
@@ -150,25 +176,14 @@ module ModeSet = Set.Make(struct
 end)
 type modeset = ModeSet.t
 
-(* Encalve Base types *)
-type encbasetype = 
-    EBtInt                             (* int *)
-  | EBtBool                            (* bool *)
-  | EBtCond                            (* cond *)
-  | EBtRef of mode * enclabeltype	      (* tau ref *)
-  | EBtFunc of mode* policy * cndset   (* func *)
+type costvar =
+| Mode of mode
+| Eid  of var
 
-and
-enclabeltype = encbasetype * policy   
-
-(* typechecking environments - maps variables to types *)
-type enccontext = enclabeltype VarLocMap.t
-
-
-(* Ploynomial representation for cost function *)
+(* Polynomial representation for cost function *)
 type polyterm =
- | Mono   of  mode
- | Poly   of  mode * polyterm
+ | Mono   of  costvar
+ | Poly   of  costvar * polyterm
 
 
 type polynomial = 
@@ -183,7 +198,30 @@ type totalcost = polynomial*polynomial
 
 (* Mode SAT *)
 module ModeSAT = Map.Make(struct
-  type t = mode
+  type t = costvar 
   let compare = Pervasives.compare
  end)
 type modesat = int ModeSAT.t
+
+(* Map bij to modes *)
+module EnclaveidMap = Map.Make(struct
+  type t = var
+  let compare = Pervasives.compare
+end)
+
+type modepair = (mode * mode )
+type enclaveidmap = modepair EnclaveidMap.t
+
+module EnclaveidRevMap = Map.Make(struct
+  type t = modepair
+  let compare = Pervasives.compare
+end)
+
+type enclaveidrevmap = var EnclaveidRevMap.t
+
+module EnclaveidConstraints = Map.Make(struct
+  type t = mode
+  let compare = Pervasives.compare
+end)
+
+type enclaveidconstraints = eidset EnclaveidConstraints.t

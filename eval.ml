@@ -47,7 +47,7 @@ and eval_exp (ev:env) (e:exp) : value =
       VBool true 
     | False -> 
       VBool false
-    | Lam(_,_,_,s) ->
+    | Lam(_,_,_,_,_,s) ->
       VFun(s)
     | Plus(e1,e2) ->  
       eval_arith ev ( + ) e1 e2

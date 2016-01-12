@@ -1,0 +1,4 @@
+x:int_high; y:int_high; cnd:cond_low
+
+set(cnd);
+if isunset(cnd) then x:=1 else x:=2 fi

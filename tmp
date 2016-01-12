@@ -1,0 +1,17 @@
+
+      else
+          (* modeset has only element *)
+	  let rec select_satisfying_id =
+				let eid = VarSet.choose eidset in
+				(* See if eid is in prohibhited list *)
+				if (VarSet.mem eid rho1eidconstraints) then
+					select_satisfying_id
+				else
+					eid
+	  in 
+	  let eid1 = select_satisfying_id in
+	  let rho1var = get_mode rho1 in
+          let updatedmodeset' = ModeSet.add (ModeVar (rho1var, eid1)) updatedmodeset in 	 
+	   (updatedmodeset', ms', eidconstraints)
+    else
+	(updatedmodeset, ms, eidconstraints)	

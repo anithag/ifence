@@ -1,0 +1,25 @@
+guess-loc:int_high ref_low; 
+orig-hash-loc:int_high ref_low; 
+guess-hash: int_high; 
+orig-hash: int_high;
+make-a-guess:func(high, {})_low ref_low; 
+authenticate:func(high, {})_high ref_low;
+l1: int_high ref_low; 
+l2:int_high ref_low; 
+l3:func(high, {})_low ref_low; 
+l4:func(high,{})_low ref_low
+
+
+
+l4 <- (lambda(high,{}). if orig-hash == guess-hash then output(H, 1) else output(H, 0) fi)_low;
+authenticate := l4;
+
+while true do
+ skip;
+ call(*authenticate);
+ skip
+end;
+
+skip
+
+

@@ -1,0 +1,9 @@
+enclave( call(*authenticate) ;
+   )
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+authenticate: (func^1@ (h, {  })_h ref^1)_l 

@@ -1,0 +1,3 @@
+l1000: int_high ref_low; x:int_low
+x:= 10; l1000 <- x
+

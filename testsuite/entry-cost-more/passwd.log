@@ -1,0 +1,338 @@
+Gammasrc:
+  (authenticate) : func(h, {  })_h  (guess-hash) : (int)_h  (guess-loc) : 
+                                                            ((int)_h  ref)_l  
+  (make-a-guess) : func(h, {  })_l  (orig-hash) : (int)_h  (orig-hash-loc) : 
+                                                           ((int)_h  ref)_l  
+  (l1) : ((int)_h  ref)_l  (l2) : ((int)_h  ref)_l  (l3) : (func(h, {  })_l  ref)_l  
+  (l4) : (func(h, {  })_l  ref)_l  
+
+Program:
+  guess-loc:= l1 ;
+   l3 <- lambda. (guess-loc <- 42;  guess-hash:= *guess-loc  );
+    make-a-guess:= l3 ;
+     orig-hash-loc:= l2 ;
+      orig-hash:= *orig-hash-loc ;
+       l4 <-
+       lambda.
+         (if (orig-hash == guess-hash) then  output( H,  1) 
+          else  output( H,  0)   fi);
+        authenticate:= l4 ;  call(authenticate);  skip        
+
+Gammaenc:
+  (authenticate) : func^x51 (h, {  })_h (guess-hash) : (int)_h  (guess-loc) : 
+                                                                ((int)_h  ref^x7)_l  
+  (make-a-guess) : func^x24 (h, {  })_l (orig-hash) : (int)_h  (orig-hash-loc) : 
+                                                               ((int)_h  ref^x30)_l  
+  (l1) : ((int)_h  ref^x6)_l  (l2) : ((int)_h  ref^x29)_l  (l3) : (func^x12
+                                                                   (h, {  })_l ref^x11)_l  
+  (l4) : (func^x39 (h, {  })_l ref^x38)_l  
+
+Translation:
+   x1  |-  x2 |-  guess-loc:= l1^x6  ;
+    x3  |-  x8 |- l3^x11  <-
+           lambda^x13(h, _).( x14  |-  x15 |- guess-loc <- 42;
+                               x16 |-  guess-hash:= *guess-loc  )_l;
+     x9  |-  x20 |-  make-a-guess:= l3^x11  ;
+      x21  |-  x25 |-  orig-hash-loc:= l2^x29  ;
+       x26  |-  x31 |-  orig-hash:= *orig-hash-loc ;
+        x32  |-  x35 |- l4^x38  <-
+                lambda^x40(h, _).(x41 |- if (orig-hash == guess-hash)
+                                  then   x43 |- output( H,  1) 
+                                  else   x44 |- output( H,  0)   fi)_l;
+         x36  |-  x47 |-  authenticate:= l4^x38  ;
+          x48  |- x52  |- call(authenticate);   x55 |- skip         
+
+Constraints:
+  
+  x1 = Normal
+  x10 = x13
+  x12 = x13
+  x13 = x14
+  x17 = Enclave
+  x18 = Enclave
+  x19 = Enclave
+  x27 = Enclave
+  x29 = Enclave
+  x30 = x29
+  x33 = Enclave
+  x34 = Enclave
+  x37 = x40
+  x39 = x40
+  x4 = Enclave
+  x40 = x41
+  x42 = Enclave
+  x45 = Enclave
+  x46 = Enclave
+  x49 = Enclave
+  x50 = Enclave
+  x54 = Enclave
+  x54 = x51
+  x6 = Enclave
+  x7 = Enclave
+  x7 = x6
+
+Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Normal -> (x11 = Normal), 
+
+  x11 = Enclave -> (x10 = Enclave), 
+
+  x14 = Enclave -> (x15 = Enclave), (x16 = Enclave), 
+
+  x15 = Enclave -> (x17 = Enclave), 
+
+  x16 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
+
+  x20 = Enclave -> (x22 = Enclave), (x23 = Enclave), 
+
+  x21 = Enclave -> (x25 = Enclave), (x26 = Enclave), 
+
+  x22 = Normal -> (x11 = Normal), 
+
+  x25 = Enclave -> (x27 = Enclave), (x28 = Enclave), 
+
+  x26 = Enclave -> (x31 = Enclave), (x32 = Enclave), 
+
+  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
+
+  x31 = Enclave -> (x33 = Enclave), (x34 = Enclave), 
+
+  x32 = Enclave -> (x35 = Enclave), (x36 = Enclave), 
+
+  x35 = Enclave -> (x37 = Enclave), 
+
+  x36 = Enclave -> (x47 = Enclave), (x48 = Enclave), 
+
+  x37 = Normal -> (x38 = Normal), 
+
+  x38 = Enclave -> (x37 = Enclave), 
+
+  x41 = Enclave -> (x42 = Enclave), (x43 = Enclave), (x44 = Enclave), 
+
+  x42 = Enclave -> (x43 = Enclave), (x44 = Enclave), 
+
+  x43 = Enclave -> (x45 = Enclave), 
+
+  x44 = Enclave -> (x46 = Enclave), 
+
+  x47 = Enclave -> (x49 = Enclave), (x50 = Enclave), 
+
+  x48 = Enclave -> (x52 = Enclave), (x53 = Enclave), 
+
+  x49 = Normal -> (x38 = Normal), 
+
+  x52 = Enclave -> (x54 = Enclave), 
+
+  x53 = Enclave -> (x55 = Enclave), 
+
+  x7 = Enclave -> (x17 = Enclave), 
+
+  x8 = Enclave -> (x10 = Enclave), 
+
+  x9 = Enclave -> (x20 = Enclave), (x21 = Enclave), 
+
+
+Unification Result:
+  
+  x1 :  Normal
+  x10 :  x14
+  x11 :  x11
+  x13 :  x14
+  x14 :  x14
+  x15 :  x15
+  x16 :  x16
+  x17 :  Enclave
+  x18 :  Enclave
+  x19 :  Enclave
+  x2 :  x2
+  x20 :  x20
+  x21 :  x21
+  x22 :  x22
+  x23 :  x23
+  x25 :  x25
+  x26 :  x26
+  x27 :  Enclave
+  x28 :  x28
+  x29 :  Enclave
+  x3 :  x3
+  x31 :  x31
+  x32 :  x32
+  x33 :  Enclave
+  x34 :  Enclave
+  x35 :  x35
+  x36 :  x36
+  x37 :  x41
+  x38 :  x38
+  x4 :  Enclave
+  x40 :  x41
+  x41 :  x41
+  x42 :  Enclave
+  x43 :  Enclave
+  x44 :  Enclave
+  x45 :  Enclave
+  x46 :  Enclave
+  x47 :  x47
+  x48 :  x48
+  x49 :  Enclave
+  x5 :  x5
+  x50 :  Enclave
+  x51 :  Enclave
+  x52 :  x52
+  x53 :  x53
+  x54 :  Enclave
+  x6 :  Enclave
+  x8 :  x8
+  x9 :  x9
+
+Remaining Conditional Constraints:
+  
+  x1 = Enclave -> (x2 = Enclave), (x3 = Enclave), 
+
+  x10 = Normal -> (x11 = Normal), 
+
+  x11 = Enclave -> (x10 = Enclave), 
+
+  x14 = Enclave -> (x15 = Enclave), (x16 = Enclave), 
+
+  x15 = Enclave -> (x17 = Enclave), 
+
+  x16 = Enclave -> (x18 = Enclave), (x19 = Enclave), 
+
+  x2 = Enclave -> (x4 = Enclave), (x5 = Enclave), 
+
+  x20 = Enclave -> (x22 = Enclave), (x23 = Enclave), 
+
+  x21 = Enclave -> (x25 = Enclave), (x26 = Enclave), 
+
+  x22 = Normal -> (x11 = Normal), 
+
+  x25 = Enclave -> (x27 = Enclave), (x28 = Enclave), 
+
+  x26 = Enclave -> (x31 = Enclave), (x32 = Enclave), 
+
+  x3 = Enclave -> (x8 = Enclave), (x9 = Enclave), 
+
+  x31 = Enclave -> (x33 = Enclave), (x34 = Enclave), 
+
+  x32 = Enclave -> (x35 = Enclave), (x36 = Enclave), 
+
+  x35 = Enclave -> (x37 = Enclave), 
+
+  x36 = Enclave -> (x47 = Enclave), (x48 = Enclave), 
+
+  x37 = Normal -> (x38 = Normal), 
+
+  x38 = Enclave -> (x37 = Enclave), 
+
+  x41 = Enclave -> (x42 = Enclave), (x43 = Enclave), (x44 = Enclave), 
+
+  x47 = Enclave -> (x49 = Enclave), (x50 = Enclave), 
+
+  x48 = Enclave -> (x52 = Enclave), (x53 = Enclave), 
+
+  x49 = Normal -> (x38 = Normal), 
+
+  x52 = Enclave -> (x54 = Enclave), 
+
+  x53 = Enclave -> (x55 = Enclave), 
+
+  x8 = Enclave -> (x10 = Enclave), 
+
+  x9 = Enclave -> (x20 = Enclave), (x21 = Enclave), 
+
+
+c SAT4J: a SATisfiability library for Java (c) 2004-2013 Artois University and CNRS
+c This is free software under the dual EPL/GNU LGPL licenses.
+c See www.sat4j.org for details.
+c version 2.3.5.v20130525
+c java.runtime.name	Java(TM) SE Runtime Environment
+c java.vm.name		Java HotSpot(TM) 64-Bit Server VM
+c java.vm.version	25.20-b23
+c java.vm.vendor	Oracle Corporation
+c sun.arch.data.model	64
+c java.version		1.8.0_20
+c os.name		Mac OS X
+c os.version		10.10.5
+c os.arch		x86_64
+c Free memory 		252056352
+c Max memory 		3817865216
+c Total memory 		257425408
+c Number of processors 	8
+c Pseudo Boolean Optimization by upper bound
+c c --- Begin Solver configuration ---
+c org.sat4j.pb.constraints.CompetResolutionPBLongMixedWLClauseCardConstrDataStructure@5910e440
+c Learn all clauses as in MiniSAT
+c claDecay=0.999 varDecay=0.95 conflictBoundIncFactor=1.5 initConflictBound=100 
+c VSIDS like heuristics from MiniSAT using a heap lightweight component caching from RSAT taking into account the objective function
+c No reason simplification
+c Glucose 2.1 dynamic restart strategy
+c Glucose 2 learned constraints deletion strategy
+c timeout=2147483s
+c DB Simplification allowed=false
+c Listener: org.sat4j.minisat.core.VoidTracing@533ddba
+c --- End Solver configuration ---
+c solving min.opb
+c reading problem ... 
+c ... done. Wall clock time 0.018s.
+c declared #vars     55
+c internal #vars     96
+c #constraints  145
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 42
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 41
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 41
+c ignored satisfied constraints => 38
+c org.sat4j.minisat.constraints.cnf.UnitClause => 21
+c 183 constraints processed.
+c objective function length is 75 literals
+c SATISFIABLE
+c OPTIMIZING...
+c Got one! Elapsed wall clock time (in seconds):0.022
+o 15
+c Got one! Elapsed wall clock time (in seconds):0.035
+o 11
+c starts		: 4
+c conflicts		: 182
+c decisions		: 226
+c propagations		: 2733
+c inspects		: 8743
+c shortcuts		: 0
+c learnt literals	: 6
+c learnt binary clauses	: 10
+c learnt ternary clauses	: 6
+c learnt constraints	: 175
+c ignored constraints	: 0
+c root simplifications	: 0
+c removed literals (reason simplification)	: 0
+c reason swapping (by a shorter reason)	: 0
+c Calls to reduceDB	: 0
+c Number of update (reduction) of LBD	: 8
+c Imported unit clauses	: 0
+c number of reductions to clauses (during analyze)	: 0
+c number of learned constraints concerned by reduction	: 0
+c number of learning phase by resolution	: 0
+c number of learning phase by cutting planes	: 0
+c speed (assignments/second)	: 160764.70588235292
+c non guided choices	6
+c learnt constraints type 
+c constraints type 
+c org.sat4j.minisat.constraints.cnf.OriginalBinaryClause => 42
+c org.sat4j.minisat.constraints.cnf.OriginalWLClause => 41
+c org.sat4j.pb.constraints.pb.MaxWatchPbLong => 41
+c ignored satisfied constraints => 38
+c org.sat4j.minisat.constraints.cnf.UnitClause => 21
+c 183 constraints processed.
+s OPTIMUM FOUND
+c Found 2 solution(s)
+v -x1 x2 -x3 x4 x5 x6 x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 x15 x16 x17 x18 x19 -x20 -x21 -x22 x23 x25 x26 x27 x28 x29 x30 x31 x32 x33 x34 x35 x36 x37 -x38 x39 x40 x41 x42 x43 x44 x45 x46 x47 x48 x49 x50 x51 x52 x53 x54 x55 
+c objective function=11
+c Total wall clock time (in seconds): 0.039
+Position: 3000
+V Position: 3036
+C Position: 3259
+-x1 x2 -x3 x4 x5 x6 x7 -x8 -x9 -x10 -x11 -x12 -x13 -x14 x15 x16 x17 x18 x19 -x20 -x21 -x22 x23 x25 x26 x27 x28 x29 x30 x31 x32 x33 x34 x35 x36 x37 -x38 x39 x40 x41 x42 x43 x44 x45 x46 x47 x48 x49 x50 x51 x52 x53 x54 x55 
+

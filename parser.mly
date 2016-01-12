@@ -27,6 +27,7 @@ Uset    : LCURLY RCURLY 		{VarSet.empty}
 unsetcnd : VAR 				{VarSet.add $1 VarSet.empty}
 	 | VAR COMMA unsetcnd		{VarSet.add $1 $3}	
  
+
 policy  : LOW				{Low}
         | HIGH				{High}
         | policy ERASE VAR  policy	{Erase($1, $3, $4)}
@@ -34,7 +35,7 @@ policy  : LOW				{Low}
 basetype  : INT				   {BtInt}
           | BOOL			   {BtBool}
           | COND			   {BtCond}
-          | FUNC LPAREN policy COMMA Uset RPAREN {BtFunc($3, $5)}
+          | FUNC LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN {BtFunc($4, $7, $9, $12)}
 	  | labeltype REF		   {BtRef($1)}
 
 labeltype : basetype UNDERSCORE policy  { ($1, $3) }
@@ -66,7 +67,7 @@ exp : bexp 				{ $1 }
     | lexp                              { $1 }
     | DEREF exp				{ Deref($2) }
 
-lexp : LPAREN LAMBDA LPAREN policy COMMA Uset RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($4, $6, $12, $9) }
+lexp : LPAREN LAMBDA LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($5,$8,$10,$13,$20,$17) }
  
 bexp: TRUE			   { True  }
     | FALSE                        { False }

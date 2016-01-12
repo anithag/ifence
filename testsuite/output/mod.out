@@ -1,0 +1,26 @@
+enclave( l4 <- (lambda^1(_,_).if orig-hash == guess-hash then output(_, 1) else output(_, 0)) ;
+   )
+authenticate := l4 ;
+
+while true do 
+skip;
+enclave( call(*authenticate) ;
+   )
+skip;
+;
+
+skip;
+
+ 
+ 
+ 	 LOCATIONS 
+ 	============= 
+authenticate: (func^1@ (h, {  })_h ref^1)_l 
+l4: (func^1@ (h, {  })_l ref^1)_l 
+
+ 
+ 
+ 	 FUNCTION 
+ 	 =========
+ lambda^1(_,_).
+ if orig-hash == guess-hash then output(_, 1) else output(_, 0)
