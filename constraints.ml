@@ -306,8 +306,6 @@ let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
 			gencout
     |EOutput(rho, x, e) -> genc
     | _  -> raise (UnimplementedError "Enclave flow sensitive typing not implemented for this statement")
-    (*
-    *)
 
 (* [gen_constraints g e] typegen_constraintss [e] in the context [g] generating a type and a set of constraints. Raise TypeError if constraints cannot be generated. *)
 (* Return type is a pair of constraint sets. First set are hard constraints of form P = Q, second set has conditional constraints of form If P then Q *)
@@ -428,7 +426,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let varlabtype = join (pc, (get_exp_label enclt)) in
 		      (* update genc1 *)
 		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
-		      let totalc = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in
+		      let totalc = ecost in
 		      let estmt = EAssign(rho, x, ee) in
 		      let ms2 = ModeSet.union ms ms1 in
 		      begin match varlabtype with
@@ -438,14 +436,14 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt)
 		      end
     |Update(e1, e2) -> 
-		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
-		      let c3, c4, ms2, genc2, eidmap2, eidrevmap2, ecost, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost1, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		      let c3, c4, ms2, genc2, eidmap2, eidrevmap2, ecost2, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
 		
 		      let c5, c6 = (Constr.union c1 c3, Constr2.union c2 c4) in
 		      let ms3 = ModeSet.union ms ms1 in 
 		      let ms4 = ModeSet.union ms2 ms3 in 
 
-		      let totalc = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in
+		      let totalc = (PPlus (fst ecost1, fst ecost2), PPlus (snd ecost1, snd ecost2)) in
 		      let estmt = EUpdate(rho, ee1, ee2) in
 
 
@@ -574,6 +572,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		     let es = (EESeq (rho, eslist)) in
 		     (c1, c2, ms1, g1, genc1, eidmap3, eidrevmap3, totalc, es) 
     |If(e, s1, s2) -> 
+			(* TODO: Implement isunset() translation here *)
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
 		      let rho1 = next_tvar() in
 		      let rho2 = next_tvar() in
@@ -703,9 +702,28 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 					(c14, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0)
 			end
 		     
-    | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
-    (*
     |Output(x, e) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      let totalc = ecost in
+		      let es0 = EOutput(rho, x, ee) in
+		 	begin match x with
+			| 'H' -> (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1, c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
+			| _ -> (c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
+			end
+		
+    | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
     | Set x	-> 
-    | Skip ->
-    *)
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho (Var x) genc eidmap eidrevmap in
+		      let totalc = ecost in
+		      let es0 = ESet(rho, x) in
+
+		      let refenclt1 = (get_enc_exp_type genc1 ee ) in
+		      let rho'      = get_mode refenclt1 in 
+		      (* rho = E => rho' = E *)
+		      let c3 = (Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Modecond (rho', Enclave (get_enclave_id rho))) c2) in
+		      let (bij, eidmap', eidrevmap') = get_bij_var rho rho' eidmap1 eidrevmap1 in
+		      let c4 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c3 in
+			(* Unlike assign, donot update type of cnd *)
+		      (c1, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
+    | Skip -> let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
+		(Constr.empty, Constr2.empty, ms, g, genc, eidmap, eidrevmap, zerocost,  ESkip(rho, rho))
