@@ -29,6 +29,7 @@ let () =
 
   let (eidmap', eidrevmap') = Helper.fill_eidrevmap ms eidmap eidrevmap in
 
+  
   (* Add bij constraints to c1 *)
   (* bij =0 /\ bjk = 0 -> bik = 0 *)
   (* bij = 1 /\ bjk = 0 -> bik = 1 *)
@@ -41,7 +42,8 @@ let () =
   
   let _ = Format.printf "Calling Solver \n" in
   (* Call Solver and get output *) 
-  let out= (read_process "java -jar /Users/anithagollamudi/research/solvers/sat4j/sat4j-pb.jar min.opb" ) in 
+  (* let out= (read_process "java -jar /Users/anithagollamudi/research/solvers/sat4j/sat4j-pb.jar min.opb" ) in  *)
+  let out= (read_process "/Users/anithagollamudi/research/solvers/toysolver-master/dist/build/toysat/toysat --pb min.opb") in
    let _ = Printf.printf "%s" out in
   
   let model = Util.extractsatmodel out ms in
@@ -52,7 +54,7 @@ let () =
 
   (* print solution *)
   let oc = open_out "output.txt" in
-  let _ = Translate.translate oc (model_with_ids, model, translation) in
+  let _ = Translate.translate oc (model_with_ids, model, translation, (Mode (ModeVar((Helper.getrhovar rho),"dummy")))) in
   (*
   let elset = Translate.collectlam ELamSet.empty translation in 
   let locset = Translate.collectloc ELocSet.empty gammaenc in

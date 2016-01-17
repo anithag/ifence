@@ -96,8 +96,8 @@ let printSingleCondConstraint oc (a, b) =
 						(* constraint form: x =0 /\ y=0 -> z=0. Convert this to 1 + x + y - z >= 1 or x + y -z >=0 *)
 						Printf.fprintf oc "+1 %s +1 %s -1 %s >= 0;\n" x y z
 					   else if (ij=1) && (jk=0) && (ik=1) then
-						(* constraint form: x =1 /\ y=0 -> z=1. Convert this to 1 - x + y + 1 - z >= 1 or -x + y -z >=-1 *)
-						Printf.fprintf oc "-1 %s +1 %s -1 %s >= -1;\n" x y z
+						(* constraint form: x =1 /\ y=0 -> z=1. Convert this to 1 - x + y + z >= 1 or -x + y +z >= 0 *)
+						Printf.fprintf oc "-1 %s +1 %s +1 %s >= 0;\n" x y z
 					   else
 						raise (UnhandledConstraint "Unsupported conditional constraint format: (bij=1/0) /\ (bjk =1/0) -> bik = 1/0" ) 
 			| _ ->		   raise (UnhandledConstraint "Unsupported conditional constraint format: (bij=1) /\ (bjk =1) -> (rho = E)" ) 

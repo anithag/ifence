@@ -378,6 +378,7 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 		   (* add bij = 0 *)
 		   let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
 		   let c6 = Constr.add (Eidcond (bij, 0)) c4 in 
+		   (* TODO: If u is non-empty, then rho' = E. Add this to constraint *)
 		   let ee = ELam(rho, rho',gencpre,p,u,gencpost,q,es) in
 			 begin match get_exp_label srctype with
 		  	 | Low -> (c6, c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)

@@ -197,7 +197,7 @@ let rec add_bij_equiv_constraints eidmap eidrevmap c =
 						let c' = Constr2.add (Preeidcond ((bij, 0), (bjk, 0)), Eidcond (bik, 0)) c in
 						(* Update Constraints bij = 1 /\ bjk = 0 -> bik =1 *)
 						let c'' = Constr2.add (Preeidcond ((bij, 1), (bjk, 0)), Eidcond (bik, 1)) c' in
-      						update_bij_constraints c' tail 
+      						update_bij_constraints c'' tail 
      in 
      let c' = update_bij_constraints c bindinglist  in
       (* Find all bindings where fst(key) or snd(key) = rhoi *)
@@ -217,7 +217,7 @@ let rec add_bij_equiv_constraints eidmap eidrevmap c =
 						let c' = Constr2.add (Preeidcond ((bij, 0), (bik, 0)), Eidcond (bjk, 0)) c in
 						(* Update Constraints bij = 1 /\ bik = 0 -> bjk =1 *)
 						let c'' = Constr2.add (Preeidcond ((bij, 1), (bik, 0)), Eidcond (bjk, 1)) c' in
-      						update_bij_constraints c' tail
+      						update_bij_constraints c'' tail
      in 
      let c'' = update_bji_constraints c' bindinglisti in
      add_bij_equiv_constraints eidmap' eidrevmap c''
@@ -254,6 +254,10 @@ let getstmtmode   = function
   | ESet(m,x)	-> m
   | EESeq (m, _) -> m
 
+let getrhovar = function
+| ModeVar(x, _) -> x
+| _ -> raise HelperError
+
 (* -----------Typing Context Checks ---------- *)
 
 (* Returns true when all registers all low *)
@@ -265,4 +269,5 @@ let check_typing_context_reg_low (genc1:enccontext) =
 					   end
 				| _ -> true
 				end) genc1
+
 

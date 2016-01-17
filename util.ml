@@ -3,6 +3,7 @@ open Printf
 open Ast
 
 exception ModeError of string
+exception EidSelectionError of string
 
 (* Execute solver and read back output in string *)
 let read_process command =
@@ -109,30 +110,45 @@ let assign_rho_ids ms model eidset eidrevmap =
 	   (* if bij = 0, assign same identifier *)
 	   let (eid1, eid2) = if (bij = 0) then 
 				let rec select_satisfying_id eidset =
+					if (VarSet.is_empty eidset) then raise (EidSelectionError "Could not select satisfying enclave id")
+					else
 					let eid = VarSet.choose eidset in
 					(* See if eid is in prohibhited list *)
 					if (VarSet.mem eid rho1eidconstraints) || (VarSet.mem eid rho2eidconstraints) then
-						select_satisfying_id eidset
+						(* Remove eid and call recursively - for faster convergence *)
+						let eidset' = VarSet.remove eid eidset in
+						select_satisfying_id eidset'
 					else
 						(eid, eid)
 				in select_satisfying_id eidset	
 			      else 
 				(* check if rho1 satisfies *)
 				let rec select_satisfying_id eidset =
+					if (VarSet.is_empty eidset) then raise (EidSelectionError "Could not select satisfying enclave id")
+					else
 					let eid = VarSet.choose eidset in
 					(* See if eid is in prohibhited list *)
 					if (VarSet.mem eid rho1eidconstraints) then
-						select_satisfying_id eidset
+						(* Remove eid and call recursively - for faster convergence *)
+						let eidset' = VarSet.remove eid eidset in
+						select_satisfying_id eidset'
 					else
 						eid
 				in 
 				let eid1 = select_satisfying_id eidset in
 				let rec select_diff_id eid1 eidset=
+					if (VarSet.is_empty eidset) then raise (EidSelectionError "Could not select satisfying enclave id")
+					else
 					let eid2 = VarSet.choose eidset in
-					(* See if eid is in prohibhited list *)
+					(* See if eid2 is in prohibhited list *)
 					if (VarSet.mem eid2 rho2eidconstraints) then
-						select_diff_id eid1 eidset
-					else if (eid1 = eid2) then select_diff_id eid1 eidset
+						(* Remove eid and call recursively - for faster convergence *)
+						let eidset' = VarSet.remove eid2 eidset in
+						select_diff_id eid1 eidset'
+					else if (eid1 = eid2) then 
+						(* Remove eid and call recursively - for faster convergence *)
+						let eidset' = VarSet.remove eid2 eidset in
+						select_diff_id eid1 eidset'
 					else eid2
 				in
 				let eid2 = select_diff_id  eid1  eidset in
