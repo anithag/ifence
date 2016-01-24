@@ -33,22 +33,39 @@ let ismodevar xstr ms =
 
 let parse_model inp model ms : modesat =
  let xlist = Str.split (Str.regexp " ") inp in
- let rec loop xs model = 
+ let rec loop xs model isbreak  = 
   match xs with
   | [] -> model
-  | x::tail -> if (String.compare x "\n") = 0 then model else
+  | x::tail -> 
+		(* Toysat has a different format. Gets \nv and \n*)
+	    if isbreak then model 
+	    else
 		let xsign, pos, len' =
-		let len = String.length x in
-		let iszero = (Char.compare x.[0] '-') in
-		if iszero = 0 then (0,1, len-1) else (1,0, len) in
-		let xstr = String.sub x pos len' in
-		(* Fixme: Check if xstr is a mode variable or bij *)
+			let len = String.length x in
+			let iszero = (Char.compare x.[0] '-') in
+					if iszero = 0 then (0,1, len-1) else (1,0, len)
+		 in
+		let xstr' = String.sub x pos len' in
+		let islastcharnv = (Char.compare xstr'.[len'-1] 'v') in
+		let islastcharn = (Char.compare xstr'.[len'-1] '\n') in
+		let xstr = if islastcharnv = 0 then
+				(* Remove last 2 chars *)
+				String.sub xstr' 0  (len' - 2)
+			    else  
+				if islastcharn=0 then
+					String.sub xstr' 0  (len' - 1)
+				else
+					xstr'
+		in
+		(* Check if xstr is a mode variable or bij *)
 		let model' = if not (ismodevar xstr ms) then
 				ModeSAT.add (Eid xstr) xsign model
 			     else
 				ModeSAT.add (Mode (ModeVar (xstr, "dummy"))) xsign model
-		in loop tail model'
- in loop xlist model
+		in
+		let isbreak = if islastcharn = 0 then true else false
+		in loop tail model' isbreak
+ in loop xlist model false
 
 let extractsatmodel  inp eidmap : modesat =
   let pos = Str.search_forward (Str.regexp "OPTIMUM FOUND") inp 0 in
@@ -84,7 +101,7 @@ let get_mode = function
  (* Assign id to each element of ms *) 
 let assign_rho_ids ms model eidset eidrevmap = 
  let rec unify_rho_ids ms updatedmodeset  eidconstraints = 
-    if not (ModeSet.is_empty ms) then
+    if not (ModeSet.is_empty ms) then begin
 	let rho1 = ModeSet.choose ms in
 	let ms' = ModeSet.remove rho1 ms in
 	let rho1eidconstraints = if EnclaveidConstraints.mem rho1 eidconstraints then
@@ -217,17 +234,22 @@ let assign_rho_ids ms model eidset eidrevmap =
       else
           (* modeset has only element *)
 	  let rec select_satisfying_id eidset =
-			let eid1 = VarSet.choose eidset in
-			(* See if eid1 is in prohibhited list *)
-			if (VarSet.mem eid1 rho1eidconstraints) then
-				select_satisfying_id eidset
+			if (VarSet.is_empty eidset) then raise (EidSelectionError "Could not select satisfying enclave id")
 			else
-				eid1
+				let eid = VarSet.choose eidset in
+				(* See if eid is in prohibhited list *)
+				if (VarSet.mem eid rho1eidconstraints) then
+					(* Remove eid and call recursively - for faster convergence *)
+					let eidset' = VarSet.remove eid eidset in
+					select_satisfying_id eidset'
+				else
+					eid
 	  in 
 	  let eid1 = select_satisfying_id eidset in
 	  let rho1var = get_mode rho1 in
           let updatedmodeset' = ModeSet.add (ModeVar (rho1var, eid1)) updatedmodeset in 	 
 	   (updatedmodeset', ms', eidconstraints)
+     end
     else
 	(updatedmodeset, ms, eidconstraints)	
  in unify_rho_ids ms ModeSet.empty EnclaveidConstraints.empty

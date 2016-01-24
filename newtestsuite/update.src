@@ -1,3 +1,8 @@
-l1000: int_high ref_low; x:int_low
-x:= 10; l1000 <- x
-
+l1000: int_high ref_low; orig-passwd:int_high; guess:int_high; ok:bool_high
+l1000 <- 10;
+guess:= *l1000; 
+if orig-passwd == guess then 
+      ok:= true
+else
+      ok:= false
+fi

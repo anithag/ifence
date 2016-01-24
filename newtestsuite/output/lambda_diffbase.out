@@ -1,0 +1,8 @@
+enclave (
+ if x == 0 then 
+  y := (lambda^1(_,_,_,_,_). z := z + 1  )   
+ else  y := (lambda^1(_,_,_,_,_). z := z + 2  )   ; 
+call(y) ; 
+y := 0 ; 
+x := 0  
+ ) z := 0  

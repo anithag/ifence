@@ -1,0 +1,7 @@
+enclave (
+ l1000 <- 10 ; 
+guess := *l1000 ; 
+if orig-passwd == guess then 
+  ok := true   
+ else  ok := false    
+ )

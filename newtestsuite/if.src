@@ -1,2 +1,2 @@
-x:int_high; y:int_high
-if y == x then x:=1 else x:=2 fi; x:=0;y:=0
+x:int_high; y:int_high;z:int_low
+if y == x then x:=1 else x:=2 fi; x:=0;y:=0; z:=0

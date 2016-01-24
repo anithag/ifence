@@ -370,7 +370,10 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 	           let rho' = get_mode enctype in
 		   let gencpre = get_enc_precontext enctype in
 		   let gencpost = get_enc_postcontext enctype in
-		   let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, scost, es = gen_constraints p g rho' s genc eidmap eidrevmap true in
+		   (* Check if gencpost contains any high variables, if so \rho' = E *)
+	     	   let allreglow = check_typing_context_reg_low gencpost in
+		   (* Note that the toplevel is set to false. We handle the constraint (not allreglow)-> rho' = E *)
+		   let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, scost, es = gen_constraints p g rho' s genc eidmap eidrevmap false in
 		   (* rho = rho'*)
 		   let rhoid = (get_enclave_id  rho) in
 		   let rho'id = (get_enclave_id  rho') in
@@ -378,12 +381,14 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 		   (* add bij = 0 *)
 		   let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
 		   let c6 = Constr.add (Eidcond (bij, 0)) c4 in 
+		   (* not allreglow -> rho' = E *)
+		   let c7 = if allreglow then c6 else (Constr.add (Modecond (rho', (Enclave rho'id))) c6 ) in
 		   (* TODO: If u is non-empty, then rho' = E. Add this to constraint *)
 		   let ee = ELam(rho, rho',gencpre,p,u,gencpost,q,es) in
 			 begin match get_exp_label srctype with
-		  	 | Low -> (c6, c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
+		  	 | Low -> (c7, c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
 			 | Erase(_,_,_)  (* q !=L -> rho = E *)
-			 | High -> (Constr.add (Modecond (rho, (Enclave rhoid))) c6 , c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
+			 | High -> (Constr.add (Modecond (rho, (Enclave rhoid))) c7 , c5, ms2, genc2, eidmap2, eidrevmap2, scost, ee)
 		         end
     |Deref e1	->  let c1, c2,ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
 		    let enclt =	get_enc_exp_type genc1 ee  in
@@ -681,7 +686,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 			let es0 = EWhile(rho, ee, es) in
 			(* Update source and target typing contexts *)
 			let g' = src_flow_sensitive_type_infer pc g s0 in
-			let genc' = enc_flow_sensitive_type_infer pc genc1 es0 in
+			let genc' = enc_flow_sensitive_type_infer pc genc2 es0 in
 			
 			(* REVISIT: Should join result in generating constraints for mode?
 				  Not necessary. No new mode variables get introduced during join here

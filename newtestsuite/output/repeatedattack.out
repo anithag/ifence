@@ -1,0 +1,16 @@
+ guess-loc := l1  ; 
+ orig-hash-loc := l2  ; 
+enclave (
+ l3 <- (lambda^1(_,_,_,_,_). guess-loc <- 42 ; 
+guess-hash := *guess-loc  ) ; 
+ret := 0 ; 
+while ( ret == 0 )  call(*l3) ; 
+orig-hash := *orig-hash-loc ; 
+l4 <- (lambda^1(_,_,_,_,_). if orig-hash == guess-hash then 
+  ret := 1   
+ else  ret := 0    ) ; 
+call(*l4)   end ; 
+ret := 0 ; 
+guess-hash := 0 ; 
+orig-hash := 0  
+ ) output(_, 2 + 5)  

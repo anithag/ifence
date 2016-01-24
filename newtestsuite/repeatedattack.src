@@ -1,0 +1,28 @@
+guess-loc:int_high ref_low; 
+orig-hash-loc:int_high ref_low; 
+guess-hash: int_high; 
+orig-hash: int_high;
+l1: int_high ref_low; 
+l2:int_high ref_low; 
+l3:func({guess-loc:int_high ref_low; guess-hash:int_high},high,{},{guess-loc:int_high ref_low; guess-hash:int_high})_low ref_low; 
+l4:func({orig-hash:int_high; guess-hash:int_high; ret:int_high},high,{},{orig-hash:int_high; guess-hash:int_high; ret:int_high})_low ref_low;
+ret:int_high
+
+
+
+guess-loc := l1;
+orig-hash-loc := l2;
+l3 <- (lambda({guess-loc:int_high ref_low; guess-hash:int_high},high,{},{guess-loc:int_high ref_low; guess-hash:int_high}).guess-loc <- 42; guess-hash := *guess-loc )_low ;
+ret := 0;
+while ret == 0 do
+ call(*l3);
+ orig-hash := *orig-hash-loc;
+ l4 <- (lambda({orig-hash:int_high; guess-hash:int_high; ret:int_high},high,{},{orig-hash:int_high; guess-hash:int_high;ret:int_high}). if orig-hash == guess-hash then ret:=1 else ret:=0 fi )_low;
+ call(*l4)
+end;
+ret:=0;
+guess-hash:=0;
+orig-hash:=0;
+output(L, 2+5)
+
+

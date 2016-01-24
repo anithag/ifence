@@ -1,0 +1,6 @@
+enclave (
+ if check == 1 then 
+  l1 <- *l2   
+ else  l2 <- *l1   ; 
+check := 0  
+ )

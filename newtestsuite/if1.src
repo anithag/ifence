@@ -1,0 +1,7 @@
+check:int_high; l1:int_high ref_low; l2:int_high ref_low
+if check == 1 then 
+   l1<- *l2 
+ else 
+   l2<- *l1 
+fi; 
+check:= 0
