@@ -47,6 +47,7 @@ let rec num_atomic_exp = function
 
 and num_atomic_stmt = function
     |Assign(x, e) -> 1 + (num_atomic_exp e)
+    |Declassify(x, e) -> 1 + (num_atomic_exp e)
     |Update(e1, e2) -> 1 + (num_atomic_exp e2)  (* no e1 *)
     |Seq(s1, s2) ->  (num_atomic_stmt s1) + (num_atomic_stmt s2)
     |If(e, s1, s2) -> 1 + (num_atomic_stmt s1) + (num_atomic_stmt s2)

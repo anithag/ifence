@@ -186,7 +186,8 @@ let rec gen_constraints_join g1 g2 =
 
 (* Given a src statement, compute the resulting typing context after the execution of statement *)
 let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
-    |Assign(x,e) -> 
+    |Assign(x,e) 
+    |Declassify(x,e) -> 
 		      let srctype = get_exp_type  g e in
 		      let srcvarlabtype = join (pc, (get_exp_label srctype)) in
 		      let g1 = VarLocMap.add (Reg x) (fst srctype, srcvarlabtype) g in
@@ -246,7 +247,8 @@ let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
     *)
 
 let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
-    |EAssign(rho, x, e) -> 
+    |EAssign(rho, x, e) 
+    |EDeclassify(rho,x, e) -> 
 		      let enctype = get_enc_exp_type  genc e in
 		      let encvarlabtype = join (pc, (get_enc_exp_label enctype)) in
 		      let genc1 = VarLocMap.add (Reg x) (fst enctype, encvarlabtype) genc in
@@ -423,7 +425,7 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:enccontext) (eidmap: enclaveidmap) (eidrevmap:enclaveidrevmap) (toplevel:bool) : constr * constr2 * modeset * context * enccontext * enclaveidmap * enclaveidrevmap* totalcost * encstmt = 
  let ms = ModeSet.add rho ModeSet.empty in
   match s0 with
-    | Assign(x, e) -> 
+    | Assign(x, e)-> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
 		      (* Update source typing context *)
 		      let g2 = src_flow_sensitive_type_infer pc g s0 in
@@ -434,6 +436,24 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
 		      let totalc = ecost in
 		      let estmt = EAssign(rho, x, ee) in
+		      let ms2 = ModeSet.union ms ms1 in
+		      begin match varlabtype with
+			| Erase(_,_,_)
+			| High -> let c3 = (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c1) in
+				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt)
+			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt)
+		      end
+    | Declassify(x,e) -> 
+		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
+		      (* Update source typing context *)
+		      let g2 = src_flow_sensitive_type_infer pc g s0 in
+		      (* get enclave type of ee *)
+		      let enclt = get_enc_exp_type genc1 ee in
+		      let varlabtype = Low  in
+		      (* update genc1 *)
+		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
+		      let totalc = ecost in
+		      let estmt = EDeclassify(rho, x, ee) in
 		      let ms2 = ModeSet.union ms ms1 in
 		      begin match varlabtype with
 			| Erase(_,_,_)

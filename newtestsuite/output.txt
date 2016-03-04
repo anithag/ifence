@@ -1,7 +1,0 @@
-enclave (
- while ( x == 10 )  l1 <- x ; 
-x := x + 1   end ; 
-x := 0 ; 
-y := 0 ; 
-z := 1  
- )

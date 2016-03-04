@@ -23,7 +23,8 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
   					|ESkip(rho', rho'')->let (list', newline) = helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc in
 	     							 let _ = if (not (List.length tail = 0)) && newline then Printf.fprintf oc "; \n" else () in  
 								 dispatch list' tail
-  					|EAssign (rho',v,e) ->let (list', newline) = helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc in
+  					|EAssign (rho',v,e) 
+					|EDeclassify(rho',v,e) ->let (list', newline) = helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc in
 	     							 let _ = if (not (List.length tail = 0)) && newline then Printf.fprintf oc "; \n" else () in  
 								 dispatch list' tail
   					|EUpdate (rho', e1, e2)->let (list', newline) = helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc in 
@@ -65,7 +66,8 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
 
-|EAssign (ModeVar(rho',_),v,e) ->let rhoisenclave = ModeSAT.find rho  model in
+|EAssign (ModeVar(rho',_),v,e) 
+|EDeclassify(ModeVar(rho',_), v, e) ->let rhoisenclave = ModeSAT.find rho  model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
 			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
@@ -162,6 +164,7 @@ and  printeprog oc (model_with_ids, model, listtoprint) = match listtoprint with
 	|EIf (rho', e, s1, s2)-> Printf.fprintf oc "if %a then \n %a \n else %a " printeexp (model_with_ids, model, e) translate (model_with_ids, model, s1, (Mode (ModeVar(getrhovar rho', "dummy"))))  translate (model_with_ids, model, s2, (Mode (ModeVar(getrhovar rho', "dummy")))) 
   	|ESkip(rho', rho'')-> Printf.fprintf oc "skip  "
   	|EAssign (rho',v,e)-> Printf.fprintf oc "%s := %a " v  printeexp (model_with_ids, model, e)
+  	|EDeclassify(rho',v,e)-> Printf.fprintf oc "%s := declassify(%a) " v  printeexp (model_with_ids, model, e)
   	|EUpdate (rho', e1, e2)-> Printf.fprintf oc "%a <- %a " printeexp (model_with_ids, model, e1)  printeexp (model_with_ids, model, e2)
   	|ESeq  (rho', s1, s2) -> Printf.fprintf oc "%a ; %a " translate (model_with_ids, model, s1, (Mode (ModeVar(getrhovar rho', "dummy"))))  translate (model_with_ids, model, s2, (Mode (ModeVar(getrhovar rho', "dummy"))))  
   	|EESeq  (rho', es) -> raise (TranslationError "Improper statement to print")

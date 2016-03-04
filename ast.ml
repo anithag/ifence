@@ -59,6 +59,7 @@ stmt =
    If of exp * stmt * stmt           (* if e1 then e2 else e3 *)
   | Skip
   | Assign of var * exp
+  | Declassify of var * exp
   | Update of exp * exp
   | Seq of stmt * stmt
   | While of  exp * stmt
@@ -112,6 +113,7 @@ and  encstmt =
    EIf of mode*encexp * encstmt * encstmt           (* if e1 then e2 else e3 *)
   |ESkip of mode * mode
   |EAssign of mode * var * encexp
+  |EDeclassify of mode * var * encexp
   |EUpdate of mode * encexp * encexp
   |ESeq of mode * encstmt * encstmt
   |EESeq of mode * (encstmt list)

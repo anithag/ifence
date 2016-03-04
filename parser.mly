@@ -10,7 +10,7 @@
 %token <char> CHANNEL
 %token PLUS UNDERSCORE LPAREN RPAREN LCURLY RCURLY COMMA SEQ COLON DOT EQUALS TRUE FALSE CALL
        IF THEN ELSE ENDIF LAMBDA EOF DEREF UPDATE SET ISUNSET  OUTPUT ASSIGN SKIP WHILE DO END
-       INT BOOL COND FUNC REF LOW HIGH ERASE CHANNEL 
+       INT BOOL COND FUNC REF LOW HIGH ERASE CHANNEL DECLASSIFY
 
 %type <Ast.program> program
 %type <Ast.stmt> stmt
@@ -51,15 +51,16 @@ vardecllist: vardecl                { $1 }
 						      ) $1 $3 }
 program: vardecllist stmt           {($1, $2)} 
 
-stmt : IF bexp THEN stmt ELSE stmt ENDIF  { If($2, $4, $6) }
-     | SKIP			    { Skip }
-     | VAR ASSIGN exp		    { Assign($1, $3)  }
-     | stmt SEQ stmt		    { Seq($1, $3)  }
-     | WHILE bexp DO stmt   END     { While($2, $4) }
-     | exp UPDATE exp 		    { Update($1, $3) }
-     | OUTPUT LPAREN CHANNEL COMMA aexp RPAREN { Output($3, $5) }
-     | CALL LPAREN exp RPAREN 	    { Call($3) }
-     | SET LPAREN VAR RPAREN        { Set($3) }
+stmt : IF bexp THEN stmt ELSE stmt ENDIF  	{ If($2, $4, $6) }
+     | SKIP			   		{ Skip }
+     | VAR ASSIGN exp		    		{ Assign($1, $3)  }
+     | VAR ASSIGN DECLASSIFY LPAREN exp RPAREN  { Declassify($1, $5)  }
+     | stmt SEQ stmt		    		{ Seq($1, $3)  }
+     | WHILE bexp DO stmt   END     		{ While($2, $4) }
+     | exp UPDATE exp 		    		{ Update($1, $3) }
+     | OUTPUT LPAREN CHANNEL COMMA aexp RPAREN  { Output($3, $5) }
+     | CALL LPAREN exp RPAREN 	    		{ Call($3) }
+     | SET LPAREN VAR RPAREN        		{ Set($3) }
 
 
 exp : bexp 				{ $1 }

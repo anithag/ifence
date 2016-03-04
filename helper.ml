@@ -245,6 +245,7 @@ let getexpmode = function
 let getstmtmode   = function
   | EIf (m,e,c1,c2) -> m
   | EAssign(m, x, e) ->m 
+  | EDeclassify(m, x, e) ->m 
   | ESeq(m,s1, s2) -> m
   | ECall(m,e)    -> m
   | EUpdate(m,e1, e2) ->m

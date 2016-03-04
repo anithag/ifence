@@ -1,0 +1,2 @@
+y1:int_high; z1:int_low
+z1:= declassify(y1); y1:=0;z1:=0;y1:= z1; y1:=y1+1

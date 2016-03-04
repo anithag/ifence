@@ -40,6 +40,7 @@ rule token = parse
 | "else"  { ELSE }
 | "fi"    {ENDIF}
 | "lambda" { LAMBDA }
+| "declassify" {DECLASSIFY}
 | "<-"    { UPDATE }
 | "output" {OUTPUT}
 | "while" { WHILE}
