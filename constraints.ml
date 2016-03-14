@@ -186,11 +186,14 @@ let rec gen_constraints_join g1 g2 =
 
 (* Given a src statement, compute the resulting typing context after the execution of statement *)
 let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
-    |Assign(x,e) 
-    |Declassify(x,e) -> 
+    |Assign(x,e)-> 
 		      let srctype = get_exp_type  g e in
 		      let srcvarlabtype = join (pc, (get_exp_label srctype)) in
 		      let g1 = VarLocMap.add (Reg x) (fst srctype, srcvarlabtype) g in
+		      g1
+    |Declassify(x,e) -> 
+		      let srctype = get_exp_type  g e in
+		      let g1 = VarLocMap.add (Reg x) (fst srctype, Low) g in
 		      g1
     |Update(e1, e2) -> g
     |Seq(s1, s2)  ->  let g1 = src_flow_sensitive_type_infer pc g s1 in
@@ -247,11 +250,14 @@ let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
     *)
 
 let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
-    |EAssign(rho, x, e) 
-    |EDeclassify(rho,x, e) -> 
+    |EAssign(rho, x, e)-> 
 		      let enctype = get_enc_exp_type  genc e in
 		      let encvarlabtype = join (pc, (get_enc_exp_label enctype)) in
 		      let genc1 = VarLocMap.add (Reg x) (fst enctype, encvarlabtype) genc in
+		      genc1
+    |EDeclassify(rho,x, e) -> 
+		      let enctype = get_enc_exp_type  genc e in
+		      let genc1 = VarLocMap.add (Reg x) (fst enctype, Low) genc in
 		      genc1
     |EUpdate(rho, e1, e2) -> genc
     |ESeq(rho, s1, s2)  ->  let g1 = enc_flow_sensitive_type_infer pc genc s1 in
@@ -732,10 +738,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
 		      let totalc = ecost in
 		      let es0 = EOutput(rho, x, ee) in
-		 	begin match x with
-			| 'H' -> (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1, c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
-			| _ -> (c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
-			end
+			(c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
 		
     | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
     | Set x	-> 

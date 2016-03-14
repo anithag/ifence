@@ -66,7 +66,6 @@ stmt : IF bexp THEN stmt ELSE stmt ENDIF  	{ If($2, $4, $6) }
 exp : bexp 				{ $1 }
     | aexp 				{ $1 }
     | lexp                              { $1 }
-    | DEREF exp				{ Deref($2) }
 
 lexp : LPAREN LAMBDA LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($5,$8,$10,$13,$20,$17) }
  
@@ -79,4 +78,5 @@ aexp: VAR                          { Var $1}
     | INTEGER                      { Constant($1) }
     | LOC			   { Loc($1) }
     | aexp PLUS aexp 		   { Plus($1, $3) }
+    | DEREF exp			   { Deref($2) }
 loc : INTEGER			   { Loc $1}

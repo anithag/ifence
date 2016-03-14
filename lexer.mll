@@ -19,6 +19,7 @@ let location =['l']['0'-'9']*
 rule token = parse
 | ws      { token lexbuf }
 | '\n'    { incline lexbuf; token lexbuf }
+| "=="     { EQUALS }
 | "+"     { PLUS }
 | "*"     { DEREF }
 | "("     { LPAREN }
@@ -30,7 +31,6 @@ rule token = parse
 | ";"     { SEQ }
 | ":="    { ASSIGN }
 | ":"     {COLON}
-| "=="     { EQUALS }
 | "true"  { TRUE } 
 | "false" { FALSE }
 | "isunset" {ISUNSET}
