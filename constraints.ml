@@ -654,8 +654,9 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 					   compute_if_trusted_cost rho rho1 rho2 s1 s2 (PPlus (init_trusted_cost, snd fcost2)) in
 			let (b12, eidmap4, eidrevmap4)  = get_bij_var rho1 rho2 eidmap''' eidrevmap''' 
 			in 
-			let if_diffid_cost = (* FIXME MAJOR: We are being locally maximum in using b12. Ideally it should take all id's into consideration *) 
-					   compute_if_diffid_cost  rho rho1 rho2 b12 if_trusted_cost 
+			let if_diffid_cost = PMonoterm (0, ((Mono (Mode rho))))
+					  (* FIXME MAJOR: We are being locally maximum in using b12. Ideally it should take all id's into consideration *) 
+					   (* compute_if_diffid_cost  rho rho1 rho2 b12 if_trusted_cost *) 
 			in
 		 	let (b1, eidmap5, eidrevmap5) = get_bij_var rho rho1 eidmap4 eidrevmap4 in
 		 	let (b2, eidmap6, eidrevmap6) = get_bij_var rho rho2 eidmap5 eidrevmap5 in
@@ -740,7 +741,6 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let es0 = EOutput(rho, x, ee) in
 			(c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
 		
-    | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
     | Set x	-> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho (Var x) genc eidmap eidrevmap in
 		      let totalc = ecost in
@@ -756,3 +756,4 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      (c1, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
     | Skip -> let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
 		(Constr.empty, Constr2.empty, ms, g, genc, eidmap, eidrevmap, zerocost,  ESkip(rho, rho))
+    | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )
