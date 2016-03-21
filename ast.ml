@@ -38,6 +38,7 @@ labeltype = basetype * policy
 and policy =
     Low
    |High
+   |Top
    |Erase of policy * var * policy
  
 
@@ -86,8 +87,8 @@ type env = value VarLocMap.t
 type encbasetype = 
     EBtInt                             (* int *)
   | EBtBool                            (* bool *)
-  | EBtCond                            (* cond *)
-  | EBtRef of mode * enclabeltype	      (* tau ref *)
+  | EBtCond of mode                    (* cond *)
+  | EBtRef of mode * enclabeltype      (* tau ref *)
   | EBtFunc of mode* enccontext* policy * cndset * enccontext   (* func *)
 
 and

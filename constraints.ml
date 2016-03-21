@@ -10,82 +10,94 @@ exception TypeNotFoundError1
 exception UnificationError
 exception UnimplementedError of string
 exception EmptySeqError
-exception JoinError
+exception JoinError of string
 
 (* Return join of policies in policy lattice *)
-let join = function
-  |_, High
-  |High, _ -> High
-  |Erase(l, c, h), Low -> Erase(l, c, h)
-  |Low, Erase(l,c,h) -> Erase(l, c, h)
+let join p = match p with 
+  |Low, High
+  |High, Low -> High
+  |_, Top
+  |Top, _ -> Top
   |Low, Low -> Low
-  |Erase(l1, c1, h1), Erase(l2, c2, h2) -> High
+  |Erase(l, c, h), Low -> Erase(l, c, h)
+  |Low, Erase(Low,c,High)
+  |Erase(Low,c,High), Low -> Erase(Low, c, High)
+  |Low, Erase(l1,c,top)
+  |Erase(l1,c,top), Low -> Erase(l1, c, top)
+  |Erase(Low, c1, High), Erase(Low, c2, High) -> High
+  | High, Erase(High, c, top)
+  | Erase(High, c, top), High -> Erase(High, c, top)
+  |Erase(_, c1, Top), Erase(_, c2, Top) -> Top
+  |_ -> raise (JoinError "Not Exhaustive")
 
 let rec join_src_tau = function
  |((BtInt, p1), (BtInt, p2)) -> (BtInt, join (p1, p2))
  |((BtBool, p1), (BtBool, p2)) -> (BtBool, join (p1, p2))
  |((BtCond, p1), (BtCond, p2)) -> (BtCond, join (p1, p2))
  |((BtRef (lt1), p1), (BtRef (lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
-							 (BtRef (join_src_tau (lt1,lt2)), join (p1, p2))
+						(* FIXME: Reference types are invariant. Compare lt1 and lt2 here and emit error if they are unequal *)
+						 (BtRef lt1, join (p1, p2))
  |((BtFunc(gpre1, p1, u1, gpost1), q1), (BtFunc (gpre2, p2, u2, gpost2), q2)) ->
 							(* FIXME: Not implementing function subtyping for now *) 
 							(* gpre1 = gpre2 and gpost1 = gpost2*)
 							(BtFunc (join_src_context (gpre1, gpre2), p1, u1, 
 							join_src_context (gpost1, gpost2)), join (q1, q2))
- | _,_ -> raise JoinError
+ | _,_ -> raise (JoinError "Incorrect base types")
 
 (* Only modes should differ, remaining should be same *)
 and join_src_context (g1, g2) = 
   let rec join_tau_special = function
- 	|((BtInt, p1), (BtInt, p2)) -> if not (p1=p2) then raise JoinError else (BtInt, p1)
- 	|((BtBool, p1), (BtBool, p2)) -> if not (p1=p2) then raise JoinError else (BtBool, p1)
- 	|((BtCond, p1), (BtCond, p2)) -> if not (p1=p2) then raise JoinError else (BtCond, p1)
+ 	|((BtInt, p1), (BtInt, p2)) -> if not (p1=p2) then raise (JoinError "") else (BtInt, p1)
+ 	|((BtBool, p1), (BtBool, p2)) -> if not (p1=p2) then raise (JoinError "") else (BtBool, p1)
+ 	|((BtCond, p1), (BtCond, p2)) -> if not (p1=p2) then raise (JoinError "") else (BtCond, p1)
  	|((BtRef lt1, p1), (BtRef lt2, p2)) -> 
-						if not (p1=p2) then raise JoinError else  (BtRef (join_tau_special (lt1,lt2)), p1)
+						(* FIXME: Reference Types are invariant. Compare lt1 and lt2 and emit error if they are not equal *)
+						if not (p1=p2) then raise (JoinError "") else  (BtRef lt1, p1)
  	|((BtFunc(gpre1, p1, u1, gpost1), q1), (BtFunc (gpre2, p2, u2, gpost2), q2)) ->
 						(* FIXME: Note the special condition q1 = q2 *)
 						let istrue = (p1=p2) && (VarSet.equal u1 u2) && (q1=q2) in
-						if not (istrue) then raise JoinError else  (BtFunc (join_src_context (gpre1,gpre2), p1, u1, 
+						if not (istrue) then raise (JoinError "Error in function join") else  (BtFunc (join_src_context (gpre1,gpre2), p1, u1, 
 												join_src_context (gpost1, gpost2) ), q1)
   in
   let g' = VarLocMap.merge (fun key a b -> begin match (a,b) with
  				| (Some a, Some b) -> Some (join_tau_special (a,b)) 
-				| (None, Some b) -> raise JoinError 
-				| (Some a, None) -> raise JoinError 
+				| (None, Some b) -> raise (JoinError " ") 
+				| (Some a, None) -> raise (JoinError " ")
 				end) g1 g2
   in g'
  
 let rec join_enc_tau = function
  |((EBtInt, p1), (EBtInt, p2)) -> (EBtInt, join (p1, p2))
  |((EBtBool, p1), (EBtBool, p2)) -> (EBtBool, join (p1, p2))
- |((EBtCond, p1), (EBtCond, p2)) -> (EBtCond, join (p1, p2))
- |((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
-							 (EBtRef (rho1, join_enc_tau (lt1,lt2)), join (p1, p2))
+ |((EBtCond rho1, p1), (EBtCond rho2, p2)) -> (EBtCond rho1, join (p1, p2))(* FIXME: Assume that rho1 = rho2 constraint will be generated *)
+ |((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> (* FIXME: References are invariant. Compare lt1 and lt2 and emit error if they are unequal *)
+							 (EBtRef (rho1, lt1), join (p1, p2))
  |((EBtFunc(rho1, gencpre1, p1, u1, gencpost1), q1), (EBtFunc (rho2, gencpre2, p2, u2, gencpost2), q2)) ->
 							(* FIXME: Not implementing function subtyping for now *) 
 							(* gencpre1 = gencpre2 and gencpost1 = gencpost2*)
 							(EBtFunc (rho1, join_enc_context (gencpre1, gencpre2), p1, u1, 
 							join_enc_context (gencpost1, gencpost2)), join (q1, q2))
- | _,_ -> raise JoinError
+ | _,_ -> raise (JoinError " ")
 
 (* Only modes should differ, remaining should be same *)
 and join_enc_context (g1, g2) = 
   let rec join_tau_special = function
- 	|((EBtInt, p1), (EBtInt, p2)) -> if not (p1=p2) then raise JoinError else (EBtInt, p1)
- 	|((EBtBool, p1), (EBtBool, p2)) -> if not (p1=p2) then raise JoinError else (EBtBool, p1)
- 	|((EBtCond, p1), (EBtCond, p2)) -> if not (p1=p2) then raise JoinError else (EBtCond, p1)
- 	|((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> (* Assume that rho1 = rho2 constraint will be generated *)
-						if not (p1=p2) then raise JoinError else  (EBtRef (rho1, join_tau_special (lt1,lt2)), p1)
+ 	|((EBtInt, p1), (EBtInt, p2)) -> if not (p1=p2) then raise (JoinError "" ) else (EBtInt, p1)
+ 	|((EBtBool, p1), (EBtBool, p2)) -> if not (p1=p2) then raise (JoinError "" ) else (EBtBool, p1)
+		(* Assume that rho1 = rho2 constraint will be generated *)
+ 	|((EBtCond rho1, p1), (EBtCond rho2, p2)) -> if not (p1=p2) then raise (JoinError "")  else (EBtCond rho1, p1)
+ 	|((EBtRef (rho1, lt1), p1), (EBtRef (rho2, lt2), p2)) -> 
+						if not (p1=p2) then raise (JoinError "") else  (EBtRef (rho1, join_tau_special (lt1,lt2)), p1)
  	|((EBtFunc(rho1, gencpre1, p1, u1, gencpost1), q1), (EBtFunc (rho2, gencpre2, p2, u2, gencpost2), q2)) ->
 						(* FIXME: Note the special condition q1 = q2 *)
 						let istrue = (p1=p2) && (VarSet.equal u1 u2) && (q1=q2) in
-						if not (istrue) then raise JoinError else  (EBtFunc (rho1, join_enc_context (gencpre1,gencpre2), p1, u1, 
+						if not (istrue) then raise (JoinError "") else  (EBtFunc (rho1, join_enc_context (gencpre1,gencpre2), p1, u1, 
 												join_enc_context (gencpost1, gencpost2) ), q1)
   in
   let g' = VarLocMap.merge (fun key a b -> begin match (a,b) with
  				| (Some a, Some b) -> Some (join_tau_special (a,b)) 
-				| (None, Some b) -> raise JoinError 
-				| (Some a, None) -> raise JoinError 
+				| (None, Some b) -> raise (JoinError "")
+				| (Some a, None) -> raise (JoinError "") 
 				end) g1 g2
   in g'
  
@@ -112,7 +124,7 @@ let rec translatetype (s:labeltype) : enclabeltype =
 	match s with
 	| (BtInt, p ) -> (EBtInt, p)
 	| (BtBool, p) -> (EBtBool, p)
-	| (BtCond, p) -> (EBtCond, p)
+	| (BtCond, p) -> let rho = next_tvar () in (EBtCond rho, p)
 	| (BtRef b, p)-> let rho = next_tvar () in
 			(EBtRef(rho, (translatetype b)), p)
         | (BtFunc(gpre, p, u, gpost), q) -> let rho = next_tvar () in
@@ -550,6 +562,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 				     	in
 				     	let totalc = (entrycost, trustedcost) in
 				     	seqloop pc (Constr.union c1 c5) (Constr2.union c2 c6) rhoj (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
+				    (* Last instruction in the sequence *)
 				     else
 				     	let (c6, eidmap3, eidrevmap3) = begin match rho with
 						| Normal -> (c4, eidmap1, eidrevmap1) (* no enclave id exists *)
@@ -566,9 +579,11 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 					in
 				    	(* Check if genc1 has any high registers. If yes, raise error. Translation not possible*)
 				     	let allreglow = check_typing_context_reg_low genc1 in
-					if (not allreglow) && toplevel then raise (TranslationError "Registers may contain secrets when exiting enclave.")
+					if (not allreglow) && toplevel then 
+						raise (TranslationError "Registers may contain secrets when exiting enclave.")
 					else
-				     	seqloop pc (Constr.union c1 c3) (Constr2.union c2 c6) rhoi (ModeSet.union ms ms1) scost g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
+						let totalc = (PPlus ((fst scost), (fst scost1)), PPlus ((snd scost), (snd scost1))) in
+				     		seqloop pc (Constr.union c1 c3) (Constr2.union c2 c6) rhoi (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
 		     in
 		     (* initially zero cost, compute later *)
 		     let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
@@ -609,6 +624,12 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let rho1 = next_tvar() in
 		      let rho2 = next_tvar() in
 		      let pc' = get_exp_label (get_exp_type g e) in
+
+		      (* HACK: If s1 is singleton, then make it sequence *)
+		      (* First check for length *)
+		      let len1 = List.length (flattenseq s1) in
+		      let len2 = List.length (flattenseq s2) in
+		      	  
 		      (* Note use only genc1! *)
 		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost1, es1 = gen_constraints pc' g rho1 s1 genc1 eidmap1 eidrevmap1 false in
 		      let c5, c6, ms3, g3, genc3, eidmap3, eidrevmap3, fcost2, es2 = gen_constraints pc' g rho2 s2 genc1 eidmap2 eidrevmap2 false in
@@ -645,18 +666,37 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		        let t1       = gen_constraints_join genc2 genc3 in 
 		        let (c15, eidmap''', eidrevmap''')       = update_constraints t1 c12 eidmap'' eidrevmap'' in	
 			
-			(* Handle cost for introducing enclave. i.e. rho = N and rho_i =E *)
-			let init_entry_cost = PPlus (fst ecost, fst fcost1) in
+			(* Handle cost for introducing enclave. i.e. ρ= N and ρ_i =E *)
+			(* If s1 or s2 are singletons, then additional entry cost (1-ρ)ρ_i *)
+			let entry_fcost1 = if len1 > 1 then (fst fcost1) 
+				     else 
+						(PMinus (PMonoterm (1, (Mono (Mode rho1))), (PMonoterm (1, (Poly ((Mode rho), ((Mono (Mode rho1))))))))) 
+				     in
+			let entry_fcost2 = if len2 > 1 then (fst fcost2)
+				     else
+						(PMinus (PMonoterm (1, (Mono (Mode rho2))), (PMonoterm (1, (Poly ((Mode rho), ((Mono (Mode rho2))))))))) 
+				     in
+			let init_entry_cost = PPlus (fst ecost, entry_fcost1) in
 			let if_entry_cost = (* (1-rho)rho1 + (1-rho)rho2 *)
-					   compute_if_entry_cost rho rho1 rho2 (PPlus (init_entry_cost, fst fcost2)) in
-			let init_trusted_cost = PPlus (snd ecost, snd fcost1) in
+					   compute_if_entry_cost rho rho1 rho2 (PPlus (init_entry_cost, entry_fcost2)) in
+
+			(* If s1 or s2 are singletons, then additional trusted cost (1-ρ)ρ_i *)
+			let trusted_fcost1 = if len1 > 1 then (snd fcost1) 
+				     else 
+						(PMinus (PMonoterm (2, (Mono (Mode rho1))), (PMonoterm (2, (Poly ((Mode rho), ((Mono (Mode rho1))))))))) 
+				     in
+			let trusted_fcost2 = if len2 > 1 then (snd fcost2)
+				     else
+						(PMinus (PMonoterm (2, (Mono (Mode rho2))), (PMonoterm (2, (Poly ((Mode rho), ((Mono (Mode rho2))))))))) 
+				     in
+			let init_trusted_cost = PPlus (snd ecost, trusted_fcost1) in
 			let if_trusted_cost = 
-					   compute_if_trusted_cost rho rho1 rho2 s1 s2 (PPlus (init_trusted_cost, snd fcost2)) in
+					   compute_if_trusted_cost rho rho1 rho2 s1 s2 (PPlus (init_trusted_cost, trusted_fcost2)) in
 			let (b12, eidmap4, eidrevmap4)  = get_bij_var rho1 rho2 eidmap''' eidrevmap''' 
 			in 
-			let if_diffid_cost = PMonoterm (0, ((Mono (Mode rho))))
+			let if_diffid_cost = 
 					  (* FIXME MAJOR: We are being locally maximum in using b12. Ideally it should take all id's into consideration *) 
-					   (* compute_if_diffid_cost  rho rho1 rho2 b12 if_trusted_cost *) 
+					    compute_if_diffid_cost  rho rho1 rho2 b12 if_trusted_cost  
 			in
 		 	let (b1, eidmap5, eidrevmap5) = get_bij_var rho rho1 eidmap4 eidrevmap4 in
 		 	let (b2, eidmap6, eidrevmap6) = get_bij_var rho rho2 eidmap5 eidrevmap5 in
@@ -748,12 +788,16 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 
 		      let refenclt1 = (get_enc_exp_type genc1 ee ) in
 		      let rho'      = get_mode refenclt1 in 
-		      (* rho = E => rho' = E *)
-		      let c3 = (Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Modecond (rho', Enclave (get_enclave_id rho))) c2) in
+		      (* rho' = E => rho = E *)
+		      let c3 = (Constr2.add (Premodecond (rho', Enclave (get_enclave_id rho')), Modecond (rho, Enclave (get_enclave_id rho))) c2) in
 		      let (bij, eidmap', eidrevmap') = get_bij_var rho rho' eidmap1 eidrevmap1 in
 		      let c4 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c3 in
-			(* Unlike assign, donot update type of cnd *)
-		      (c1, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
+		
+			(* REVISIT: Experimental, trying to set all conditions in enclave mode *)
+		      let c5 = Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1 in
+
+		      (c5, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
+
     | Skip -> let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
 		(Constr.empty, Constr2.empty, ms, g, genc, eidmap, eidrevmap, zerocost,  ESkip(rho, rho))
     | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )

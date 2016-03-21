@@ -23,7 +23,7 @@ let () =
       exit 1 in
 
   let rho = next_tvar () in (* rho = Normal *)
-  let c0, c1, ms, gsrc, gammaenc, eidmap, eidrevmap, fcost, translation = (Constraints.gen_constraints Low gammasrc rho stmt VarLocMap.empty EnclaveidMap.empty EnclaveidRevMap.empty false) in
+  let c0, c1, ms, gsrc, gammaenc, eidmap, eidrevmap, fcost, translation = (Constraints.gen_constraints Low gammasrc rho stmt VarLocMap.empty EnclaveidMap.empty EnclaveidRevMap.empty true) in
   let c0' = Constr.add (Modecond (rho, Normal)) c0 in
   let totalc = PPlus (fst fcost, snd fcost) in 
 

@@ -1,0 +1,3 @@
+cnd:cond_low; l1:int_high~top,cnd ref_low; z:int_high
+z:= *l1;
+z:= 0

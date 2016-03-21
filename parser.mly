@@ -10,7 +10,7 @@
 %token <char> CHANNEL
 %token PLUS UNDERSCORE LPAREN RPAREN LCURLY RCURLY COMMA SEQ COLON DOT EQUALS TRUE FALSE CALL
        IF THEN ELSE ENDIF LAMBDA EOF DEREF UPDATE SET ISUNSET  OUTPUT ASSIGN SKIP WHILE DO END
-       INT BOOL COND FUNC REF LOW HIGH ERASE CHANNEL DECLASSIFY
+       INT BOOL COND FUNC REF LOW HIGH ERASE CHANNEL DECLASSIFY TOP
 
 %type <Ast.program> program
 %type <Ast.stmt> stmt
@@ -28,9 +28,10 @@ unsetcnd : VAR 				{VarSet.add $1 VarSet.empty}
 	 | VAR COMMA unsetcnd		{VarSet.add $1 $3}	
  
 
-policy  : LOW				{Low}
-        | HIGH				{High}
-        | policy ERASE VAR  policy	{Erase($1, $3, $4)}
+policy  : LOW						{Low}
+        | HIGH						{High}
+	| TOP						{Top}
+        | policy ERASE policy COMMA VAR 		{Erase($1, $5, $3)}
 
 basetype  : INT				   {BtInt}
           | BOOL			   {BtBool}
@@ -69,14 +70,14 @@ exp : bexp 				{ $1 }
 
 lexp : LPAREN LAMBDA LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($5,$8,$10,$13,$20,$17) }
  
-bexp: TRUE			   { True  }
-    | FALSE                        { False }
-    | aexp EQUALS aexp		   { Eq($1, $3) }
-    | ISUNSET LPAREN VAR RPAREN    { Isunset($3) }
+bexp: TRUE			  			 { True  }
+    | FALSE                        			 { False }
+    | aexp EQUALS aexp 					 { Eq($1, $3) }
+    | ISUNSET LPAREN VAR RPAREN   			 { Isunset($3) }
 
 aexp: VAR                          { Var $1}
     | INTEGER                      { Constant($1) }
     | LOC			   { Loc($1) }
     | aexp PLUS aexp 		   { Plus($1, $3) }
-    | DEREF exp			   { Deref($2) }
+    | LPAREN DEREF exp	RPAREN	   { Deref($3) }
 loc : INTEGER			   { Loc $1}

@@ -115,7 +115,7 @@ let rec printEncTypChannel oc (lt, rhomap)  = match lt with
   | (b, l) -> begin match b with
 	  		| EBtInt -> Printf.fprintf oc "(int)_%a " printLabelChannel l 
  			| EBtBool -> Printf.fprintf oc "(bool)_%a " printLabelChannel l
-			| EBtCond -> Printf.fprintf oc "(cond)_%a " printLabelChannel l
+			| EBtCond m -> Printf.fprintf oc "(cond^%d)_%a " (ModeSAT.find  (Mode m) rhomap) printLabelChannel l
 			| EBtRef(m,lt') -> Printf.fprintf oc "(%a ref^%d)_%a " printEncTypChannel (lt', rhomap) (ModeSAT.find  (Mode m) rhomap) printLabelChannel l
 			| EBtFunc(m,_,p, u,_)-> Printf.fprintf oc "func^%d@ (%a, { %a })_%a" (ModeSAT.find (Mode m) rhomap) printLabelChannel p printusetchannel u printLabelChannel l
 			end

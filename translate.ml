@@ -5,6 +5,16 @@ open Helper
 
 exception PrintError
 exception TranslationError of string
+exception IdNotFound of string
+
+let rec get_resolved_enclave_id model_with_ids rho =
+	let elm  = (try ModeSet.choose model_with_ids with Not_found-> raise (IdNotFound "Id not found for enclave")) in
+	let (rho', id') = begin match elm with
+		   		|ModeVar (rho', id') -> (rho', id')
+				|_ -> raise (IdNotFound "Weird Constructor")
+			  end in
+	 if rho' == rho then id' else
+	   get_resolved_enclave_id (ModeSet.remove elm model_with_ids) rho
 
 let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
  |EESeq (ModeVar(rho, _), estmtlist) ->let rhoisenclave = ModeSAT.find (Mode (ModeVar(rho, "dummy")))  model in 
@@ -54,14 +64,14 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EIf (ModeVar(rho',_), e, s1, s2)-> let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt) 
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho') printestmt (model_with_ids, model, encstmt) 
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt) 
 		        else raise (TranslationError "Incorrect mode assignment")
 |ESkip(ModeVar(rho',_), rho'')->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1)&& (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -70,7 +80,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EDeclassify(ModeVar(rho',_), v, e) ->let rhoisenclave = ModeSAT.find rho  model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -78,7 +88,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EUpdate (ModeVar(rho',_), e1, e2)->let rhoisenclave = ModeSAT.find rho  model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -86,7 +96,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |ESeq  (ModeVar(rho',_), s1, s2) ->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -94,7 +104,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EESeq  (ModeVar(rho',_), es) ->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -102,7 +112,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EWhile  (ModeVar(rho',_), e, es) ->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -110,7 +120,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |EOutput (ModeVar(rho',_), ch, e) ->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -118,7 +128,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |ECall  (ModeVar(rho',_), e) ->let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')   printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -126,7 +136,7 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 |ESet  (ModeVar(rho',_), v) -> let rhoisenclave = ModeSAT.find rho model in
  			 let rho'isenclave = ModeSAT.find (Mode (ModeVar(rho', "dummy")))  model in 
 			 if (rhoisenclave = 0) && (rho'isenclave=1) then
-			 	Printf.fprintf oc "enclave( %a )" printestmt (model_with_ids, model, encstmt)
+			 	Printf.fprintf oc "enclave(%s, %a )" (get_resolved_enclave_id model_with_ids rho')  printestmt (model_with_ids, model, encstmt)
 			 else if ((rhoisenclave=1) && (rho'isenclave=1)) || ((rhoisenclave=0) && (rho'isenclave=0)) then
 			 	Printf.fprintf oc " %a " printestmt (model_with_ids, model, encstmt)
 		        else raise (TranslationError "Incorrect mode assignment")
@@ -135,10 +145,10 @@ let rec translate oc (model_with_ids, model, encstmt, rho) = match encstmt with
 
 
 and helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc =
-		let rho' = begin match rho' with
-			   |ModeVar(rho'var, _ ) -> ModeVar(rho'var, "dummy")
-			   | _ -> raise (TranslationError "Improper mode assignment")
-			   end in
+		let (rho', rho'var) = begin match rho' with
+			   		|ModeVar(rho'var, _ ) -> (ModeVar(rho'var, "dummy"), rho'var)
+			   		| _ -> raise (TranslationError "Improper mode assignment")
+			   		end in
  		let rho'isenclave = ModeSAT.find (Mode rho')  model in 
 		let  (listtoprint', newline) = if (rhoisenclave = 0) && (rho'isenclave=1) then 
 					(listtoprint @ [est], false)
@@ -147,7 +157,7 @@ and helperfunc rhoisenclave rho' model_with_ids model listtoprint est oc =
 		     		    else if (rhoisenclave=0) && (rho'isenclave=0) then
 					let _ = if List.length listtoprint = 0 then () else
 						(* Print the list within enclave and then print the normal mode statement *) 
-						Printf.fprintf oc "enclave (\n %a \n )" printeprog (model_with_ids, model, listtoprint) in
+						Printf.fprintf oc "enclave (%s, \n %a \n )" (get_resolved_enclave_id model_with_ids rho'var)  printeprog (model_with_ids, model, listtoprint) in
 					let _ = Printf.fprintf oc " %a " printestmt (model_with_ids, model, est) in
 						([], true)	
 		     		   else raise (TranslationError "Incorrect mode assignment")
@@ -169,7 +179,7 @@ and  printeprog oc (model_with_ids, model, listtoprint) = match listtoprint with
   	|ESeq  (rho', s1, s2) -> Printf.fprintf oc "%a ; %a " translate (model_with_ids, model, s1, (Mode (ModeVar(getrhovar rho', "dummy"))))  translate (model_with_ids, model, s2, (Mode (ModeVar(getrhovar rho', "dummy"))))  
   	|EESeq  (rho', es) -> raise (TranslationError "Improper statement to print")
   	|EWhile  (rho', e, es) ->Printf.fprintf oc "while ( %a ) %a end " printeexp (model_with_ids, model, e) translate (model_with_ids, model, es, (Mode (ModeVar(getrhovar rho', "dummy"))))
-  	|EOutput (rho', ch, e)->Printf.fprintf oc "output(_, %a) " printeexp (model_with_ids, model, e)
+  	|EOutput (rho', ch, e)->Printf.fprintf oc "output %a to %c " printeexp (model_with_ids, model, e) ch
   	|ECall  (rho', e) ->Printf.fprintf oc "call(%a) " printeexp (model_with_ids, model, e)
   	|ESet  (rho', v) ->Printf.fprintf oc "set(%s) " v
 

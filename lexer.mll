@@ -21,7 +21,6 @@ rule token = parse
 | '\n'    { incline lexbuf; token lexbuf }
 | "=="     { EQUALS }
 | "+"     { PLUS }
-| "*"     { DEREF }
 | "("     { LPAREN }
 | ")"     { RPAREN }
 | "{"	  {LCURLY}
@@ -56,10 +55,12 @@ rule token = parse
 | "_"	  {UNDERSCORE}
 | "low"	  {LOW}
 | "high"  {HIGH}
+| "top"   {TOP}
 | "L"|"H" as channel {CHANNEL(channel)}
-| "->"    { ERASE}
+| "~"    { ERASE}
 | location as l {LOC(int_of_string (String.sub l 1 ((String.length l)-1)))}
 | id as v { VAR(v) }
+| "*"     { DEREF }
 | digit+ as n  { INTEGER(int_of_string n) }
 | eof     { EOF }
 

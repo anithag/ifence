@@ -21,6 +21,7 @@ let get_mode (t: enclabeltype) =
    match t with
    |EBtRef(m, lt), p -> m
    |EBtFunc(m,_,p,u,_), q -> m
+   |EBtCond m, p -> m
    | _ -> raise HelperError
 
 let get_enc_precontext (t:enclabeltype) =
@@ -105,7 +106,7 @@ let rec check_enc_base_type b1 b2 = match (b1, b2) with
 			(ispreequal && ispostequal && (p1 = p2) && (VarSet.equal u1 u2))
   | EBtInt, EBtInt -> true
   | EBtBool, EBtBool -> true
-  | EBtCond, EBtCond -> true
+  | EBtCond rho1, EBtCond rho2 -> true
   | _ ,_ -> false (* int, bool, cond *)
 
 (* ---------- FRESH TYPE VARIABLES ---------- *)
