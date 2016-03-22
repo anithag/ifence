@@ -819,7 +819,8 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let c4 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c3 in
 		
 			(* REVISIT: Experimental, trying to set all conditions in enclave mode *)
-		      let c5 = Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1 in
+		       (* let c5 = Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1 in *)
+			let c5 = c1 in
 
 		      (c5, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
 
