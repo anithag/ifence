@@ -49,9 +49,11 @@ and exp =
   | Lam of context * policy * cndset * context * policy * stmt   (* (lambda(G_pre, p, {}, G_post).stmt)_q *)
   | Constant of int                      (* n *)
   | Plus of exp * exp               (* e1 + e2 *)
+  | Modulo of exp * exp             (* e1 % e2 *)
   | True                            (* true *)
   | False                           (* false *)
   | Eq of exp * exp                 (* e1 = e2 *) 
+  | Neq of exp * exp                (* e1 != e2 *) 
   | Deref of exp
   | Isunset of var
   
@@ -103,9 +105,11 @@ type encexp =
   | ELam of mode * mode * enccontext * policy* cndset * enccontext * policy* encstmt (* First mode|-lambda^mode(gpre, p,u, gpost)_q *)
   | EConstant of mode * int                  (* n *)
   | EPlus of mode * encexp * encexp          (* e1 + e2 *)
+  | EModulo of mode * encexp * encexp        (* e1 % e2 *)
   | ETrue of mode                            (* true *)
   | EFalse of mode                           (* false *)
   | EEq of mode * encexp * encexp            (* e1 = e2 *) 
+  | ENeq of mode * encexp * encexp            (* e1 != e2 *) 
   | EDeref of mode * encexp
   | EIsunset of mode * var
 

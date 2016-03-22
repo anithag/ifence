@@ -19,6 +19,7 @@ let join p = match p with
   |_, Top
   |Top, _ -> Top
   |Low, Low -> Low
+  |High,High -> High
   |Erase(l, c, h), Low -> Erase(l, c, h)
   |Low, Erase(Low,c,High)
   |Erase(Low,c,High), Low -> Erase(Low, c, High)
@@ -110,8 +111,10 @@ let rec get_exp_type (g:context) (e:exp) : labeltype =
    | Constant n -> (BtInt, Low)
    | True    -> (BtBool, Low)
    | False -> (BtBool, Low)
-   | Eq(e1, e2) -> (BtBool, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
-   | Plus(e1, e2) -> (BtInt, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
+   | Eq(e1, e2)
+   | Neq(e1, e2) -> (BtBool, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
+   | Plus(e1, e2) 
+   | Modulo(e1, e2) -> (BtInt, join (snd (get_exp_type g e1), snd (get_exp_type g e2)))
    | Isunset x -> (BtBool, Low)
    | Deref e1   -> begin match (get_exp_type g e1) with
 		  | ((BtRef lt), p) -> (fst lt, join ((snd lt), p))
@@ -141,8 +144,10 @@ let rec get_enc_exp_type (genc:enccontext) (e:encexp) : enclabeltype =
    | EConstant(_,n) -> (EBtInt, Low)
    | ETrue _    -> (EBtBool, Low)
    | EFalse _ -> (EBtBool, Low)
-   | EEq(rho,e1, e2) -> (EBtBool, join (snd (get_enc_exp_type genc e1), snd (get_enc_exp_type genc e2)))
-   | EPlus(rho,e1, e2) -> (EBtInt, join (snd (get_enc_exp_type genc e1 ), snd (get_enc_exp_type genc e2)))
+   | EEq(rho,e1, e2) 
+   | ENeq(rho,e1, e2) -> (EBtBool, join (snd (get_enc_exp_type genc e1), snd (get_enc_exp_type genc e2)))
+   | EPlus(rho,e1, e2) 
+   | EModulo(rho,e1, e2) -> (EBtInt, join (snd (get_enc_exp_type genc e1 ), snd (get_enc_exp_type genc e2)))
    | EIsunset(rho,x) -> (EBtBool, Low)
    | EDeref(rho, e)   -> begin match (get_enc_exp_type genc e) with
 		  | (EBtRef(rho, lt), p) -> (fst lt, join ((snd lt), p))
@@ -363,7 +368,7 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 			 (Constr.add (Modecond (rho', (Enclave (get_enclave_id rho')))) c1, c2, ms1, genc', eidmap, eidrevmap,
 					(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), ELoc(rho, rho', l))	
 	      end
-    |Eq(e1, e2) -> 
+    |Eq(e1, e2)-> 
 		   let c1, c2, ms1, genc1, eidmap1, eidrevmap1,_, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
 		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
 		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
@@ -373,7 +378,17 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
 				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EEq(rho, ee1, ee2) )
 		   end
-    |Plus(e1, e2) -> 
+    |Neq(e1, e2) ->
+		   let c1, c2, ms1, genc1, eidmap1, eidrevmap1,_, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap1 in
+		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
+		   begin match get_exp_label (get_exp_type g e) with 
+		   | Low -> (c5, c6, ms3, genc2, eidmap2, eidrevmap2, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), ENeq(rho, ee1, ee2) )
+		   | Erase(_,_,_)
+		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
+				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), ENeq(rho, ee1, ee2) )
+		   end
+    |Plus(e1, e2)->
 		   let c1, c2, ms1, genc1, eidmap1,eidrevmap2,  _, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
 		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap2 in
 		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
@@ -382,6 +397,16 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 		   | Erase(_,_,_)
 		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
 				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EPlus(rho, ee1, ee2))
+		   end
+    |Modulo(e1, e2) ->
+		   let c1, c2, ms1, genc1, eidmap1,eidrevmap2,  _, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
+		   let c3, c4, ms2, genc2, eidmap2, eidrevmap2, _, ee2 = gen_constraints_exp g rho e2 genc1 eidmap1 eidrevmap2 in
+		   let c5, c6, ms3 = (Constr.union c1 c3, Constr2.union c2 c4, ModeSet.union ms1 ms2) in
+		   begin match get_exp_label (get_exp_type g e) with
+		   | Low -> (c5, c6, ms3, genc2, eidmap2, eidrevmap2, (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EModulo(rho, ee1, ee2))
+		   | Erase(_,_,_)
+		   | High -> (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c5, c6, ms3, genc2, eidmap2, eidrevmap2, 
+				(PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))), EModulo(rho, ee1, ee2))
 		   end
     |Lam(gpre,p,u, gpost, q,s) -> 
     		   (*let srctype = get_exp_type g e in *)

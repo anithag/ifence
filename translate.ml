@@ -187,10 +187,12 @@ and printeexp oc  (model_with_ids, model, e) = match e with
   | EVar(rho, v) -> Printf.fprintf oc "%s" v
   | ELam(rho, ModeVar(rho', _), pre, p, u, q, post, s) -> Printf.fprintf oc "(lambda^%d(_,_,_,_,_).%a)" (ModeSAT.find (Mode (ModeVar(rho', "dummy"))) model) translate (model_with_ids, model, s, (Mode (ModeVar(rho', "dummy"))))  
   | EPlus (rho, l,r) -> Printf.fprintf oc "%a + %a" printeexp (model_with_ids, model, l) printeexp (model_with_ids, model, r)
+  | EModulo (rho, l,r) -> Printf.fprintf oc "%a %% %a" printeexp (model_with_ids, model, l) printeexp (model_with_ids, model, r)
   | EConstant(rho,n) -> Printf.fprintf oc "%d" n
   | ETrue rho ->  Printf.fprintf oc "true"
   | EFalse rho  -> Printf.fprintf oc "false"
   | EEq (rho, l,r) -> Printf.fprintf oc "%a == %a" printeexp (model_with_ids, model, l) printeexp (model_with_ids, model, r)
+  | ENeq (rho, l,r) -> Printf.fprintf oc "%a != %a" printeexp (model_with_ids, model, l) printeexp (model_with_ids, model, r)
   | ELoc(rho, rho', l) ->Printf.fprintf oc "l%d" l
   | EDeref(rho,e) -> Printf.fprintf oc "*%a" printeexp (model_with_ids, model, e)
   | EIsunset(rho,x) -> Printf.fprintf oc "isunset(%s)" x

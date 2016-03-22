@@ -20,7 +20,9 @@ rule token = parse
 | ws      { token lexbuf }
 | '\n'    { incline lexbuf; token lexbuf }
 | "=="     { EQUALS }
+| "!="     { NEQUALS }
 | "+"     { PLUS }
+| "%"     { MODULO  }
 | "("     { LPAREN }
 | ")"     { RPAREN }
 | "{"	  {LCURLY}
