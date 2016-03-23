@@ -44,6 +44,7 @@ let printConstraint oc c =
  |Modecond (ModeVar (x,_), Normal) -> Printf.fprintf oc "+1 %s = 0;\n" x
  |Modecond (ModeVar (x, _), ModeVar (y, _))-> Printf.fprintf oc "+1 %s -1 %s= 0;\n" x y
  |Eidcond  (x, i) ->Printf.fprintf oc "+1 %s =  %d;\n" x i
+ |Killcond  (x, i) ->Printf.fprintf oc "+1 %s =  %d;\n" x i
  |Cnfclause condlist -> let rec printorclause condlist total = begin match condlist with
 				| (Modecond (ModeVar (x,_), Enclave _))::tail -> Printf.fprintf oc " +1 %s " x; printorclause tail total
 				| (Modecond (ModeVar (x,_), Normal ))::tail -> Printf.fprintf oc " -1 %s " x ; printorclause tail (total-1)
@@ -73,16 +74,16 @@ let printSingleCondConstraint oc (a, b) =
 			|Modecond (ModeVar (y, _), Enclave _) (* Constraint of form x = Enclave -> y = Enclave is converted to 1 -x + y >= 1 *)
 			|Modecond (Enclave _, ModeVar (y, _)) -> Printf.fprintf oc "-1 %s +1 %s >= 0;\n" x y
 
-			|Modecond (ModeVar (y, _), Normal)(* Constraint of form x = Enclave -> y = Normal is converted to 1 -x - y >= 1 *)
-			|Modecond (Normal, ModeVar (y,_)) -> Printf.fprintf oc "-1 %s -1 %s >= 0;\n" x y
+			|Modecond (ModeVar (y, _), Normal)(* Constraint of form x = Enclave -> y = Normal is converted to 2 -x - y >= 1 *)
+			|Modecond (Normal, ModeVar (y,_)) -> Printf.fprintf oc "-1 %s -1 %s >= -1;\n" x y
 			|Eidcond  (x, i)   -> Printf.fprintf oc " +1 %s = %d;\n " x i
 			
 			| _    -> raise (UnhandledConstraint "Unsupported conditional constraint format: (x=E)-> (a \/ b\/ c)") 
 			end
 |Premodecond (Normal, ModeVar (x,_))
 |Premodecond (ModeVar (x,_), Normal) -> begin match b with
-			|Modecond (ModeVar (y,_), Enclave _) (* Constraint of form x = Normal -> y = Enclave is converted to 1 +x + y >= 1 *)
-			|Modecond (Enclave _ , ModeVar (y,_)) -> Printf.fprintf oc "+1 %s +1 %s >= 0;\n" x y
+			|Modecond (ModeVar (y,_), Enclave _) (* Constraint of form x = Normal -> y = Enclave is converted to x + y >= 1 *)
+			|Modecond (Enclave _ , ModeVar (y,_)) -> Printf.fprintf oc "+1 %s +1 %s >= 1;\n" x y
 
 			|Modecond (ModeVar (y,_), Normal)(* Constraint of form x = Normal -> y = Normal is converted to 1 +x - y >= 1 *)
 			|Modecond (Normal, ModeVar (y,_)) -> Printf.fprintf oc "+1 %s -1 %s >= 0;\n" x y
@@ -102,7 +103,24 @@ let printSingleCondConstraint oc (a, b) =
 						raise (UnhandledConstraint "Unsupported conditional constraint format: (bij=1/0) /\ (bjk =1/0) -> bik = 1/0" ) 
 			| _ ->		   raise (UnhandledConstraint "Unsupported conditional constraint format: (bij=1) /\ (bjk =1) -> (rho = E)" ) 
 			end
+|Prekillcond ((k,v1), (rho1, rho2)) -> begin match (b, rho1, rho2) with
+			|Eidcond (z, v2), ModeVar (y, _), Enclave _  -> if (v1=1) && (v2=1)  then
+							(* kill constraint k = 1 /\ y = 1 -> z =1. Equivalent to -k -y +z>=-1 *)
+								Printf.fprintf oc "-1 %s  -1 %s +1 %s >= 0;\n" k y z 
+					    		else
+								raise (UnhandledConstraint "Unsupported conditional constraint format: k=0/1 /\ rho =0/1 -> b=0/1" )
 
+			| _ ->		   		raise (UnhandledConstraint "Unsupported conditional constraint format: k=0/1 /\ rho =0/1 -> b=0/1" )
+			end
+|Prekillexitcond ((Enclave _, ModeVar (x,_)),(Normal, ModeVar (y,_))) 
+|Prekillexitcond ((ModeVar (x,_), Enclave _), (ModeVar (y,_), Normal)) -> begin match b with
+			|Killcond (k, i) -> if i = 1 then
+						 (* x =1 /\ y =0 -> k = 1. Equivalent to -x + y + k >=0 *)
+						Printf.fprintf oc "-1 %s +1 %s +1 %s >= 0;\n" x y k
+					    else
+						raise (UnhandledConstraint "Unsupported conditional constraint format: rho=0/1 /\ rho =0/1 -> k=0/1" )
+			|_ ->	raise (UnhandledConstraint "Unsupported conditional constraint format: rho=0/1 /\ rho =0/1 -> k=0/1" )
+			end
 let printusetchannel oc u = let _ = VarSet.fold (fun el oc -> Printf.fprintf oc "%s, " el; oc )  u oc in ()
 
 

@@ -6,6 +6,9 @@ exception HelperError
 let typ_eq (t1:labeltype) (t2:labeltype) : bool = 
   t1 = t2
 
+
+let number_of_enclaves = 10
+
 let get_src_content_type (t : labeltype) =
      match t with
     |(BtRef lt), p -> lt
@@ -126,6 +129,11 @@ let next_tvar () : mode =
   let newidvar = next_tid() in 
   ModeVar (s, newidvar)
 
+let next_kvar() : var =
+   let x = !tvar_cell in
+   let s = "x" ^ string_of_int x in
+   let _ = incr tvar_cell in
+ 	s
 
 let get_bij_var rho1 rho2 eidmap eidrevmap = 
 			let (bij, eidmap', eidrevmap')  = if EnclaveidRevMap.mem (rho1, rho2) eidrevmap then
@@ -244,17 +252,17 @@ let getexpmode = function
   | EIsunset(rho,x) -> rho
 
 let getstmtmode   = function
-  | EIf (m,e,c1,c2) -> m
-  | EAssign(m, x, e) ->m 
-  | EDeclassify(m, x, e) ->m 
-  | ESeq(m,s1, s2) -> m
-  | ECall(m,e)    -> m
-  | EUpdate(m,e1, e2) ->m
-  | EWhile(m, b, s) -> m
-  | ESkip (m, m') -> m'
-  | EOutput(m,ch, e) ->m
-  | ESet(m,x)	-> m
-  | EESeq (m, _) -> m
+  | EIf (m,e,c1,c2,_) -> m
+  | EAssign(m, x, e,_) ->m 
+  | EDeclassify(m, x, e,_) ->m 
+  | ESeq(m,s1, s2,_) -> m
+  | ECall(m,e,_)    -> m
+  | EUpdate(m,e1, e2,_) ->m
+  | EWhile(m, b, s,_) -> m
+  | ESkip (m, m',_) -> m'
+  | EOutput(m,ch, e,_) ->m
+  | ESet(m,x,_)	-> m
+  | EESeq (m, _,_) -> m
 
 let getrhovar = function
 | ModeVar(x, _) -> x

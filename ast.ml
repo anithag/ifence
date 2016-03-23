@@ -115,25 +115,27 @@ type encexp =
 
 (* Translation data structure. Each Statement has an associated mode in which it executes *)
 and  encstmt = 
-   EIf of mode*encexp * encstmt * encstmt           (* if e1 then e2 else e3 *)
-  |ESkip of mode * mode
-  |EAssign of mode * var * encexp
-  |EDeclassify of mode * var * encexp
-  |EUpdate of mode * encexp * encexp
-  |ESeq of mode * encstmt * encstmt
-  |EESeq of mode * (encstmt list)
-  |EWhile of mode * encexp * encstmt
-  |EOutput of mode* channel * encexp
-  |ECall of mode * encexp
-  |ESet of mode * var
+   EIf of mode*encexp * encstmt * encstmt * var           (* if e1 then e2 else e3 *)
+  |ESkip of mode * mode * var
+  |EAssign of mode * var * encexp * var
+  |EDeclassify of mode * var * encexp * var
+  |EUpdate of mode * encexp * encexp * var
+  |ESeq of mode * encstmt * encstmt * var
+  |EESeq of mode * (encstmt list) * var
+  |EWhile of mode * encexp * encstmt * var
+  |EOutput of mode* channel * encexp * var
+  |ECall of mode * encexp * var
+  |ESet of mode * var * var
 
 type progbody = Exp of exp | Stmt of stmt | EncExp of encexp
 
 type mode_cond= (mode * mode) 
 type eid_cond = (var * int) 
+type kill_cond = (var * int) 
 type constr_cond = 
  | Modecond of mode_cond  (* Represents (rho, id) = (Enclave, i) *) 
  | Eidcond of eid_cond    (* Represents (b_ij = 0/1 *)
+ | Killcond of kill_cond  (* Represents alpha = 0/1 *)
  | Cnfclause of constr_cond list  (* Represents (rho, id) \/ (rho2, id2) \/ (rho3, id3) *)
 
 (* sets of pairs of types *)
@@ -145,6 +147,8 @@ end)
 type pre_cond =  
  |Premodecond of mode_cond   (* E.g: x = E -> *) 
  |Preeidcond  of eid_cond * eid_cond   (* bij = 0 /\ bjk = 0 -> *)
+ |Prekillcond of kill_cond * mode_cond (* alpha = 0/1 /\ x = E -> *)
+ |Prekillexitcond of mode_cond * mode_cond  (* x1 = E /\ x2 = N -> *)
 
 module Constr2 = Set.Make(struct
   type t = pre_cond * constr_cond
@@ -186,6 +190,7 @@ type modeset = ModeSet.t
 type costvar =
 | Mode of mode
 | Eid  of var
+| Kvar of var
 
 (* Polynomial representation for cost function *)
 type polyterm =

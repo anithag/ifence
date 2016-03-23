@@ -23,8 +23,10 @@ let () =
       exit 1 in
 
   let rho = next_tvar () in (* rho = Normal *)
-  let c0, c1, ms, gsrc, gammaenc, eidmap, eidrevmap, fcost, translation = (Constraints.gen_constraints Low gammasrc rho stmt VarLocMap.empty EnclaveidMap.empty EnclaveidRevMap.empty true) in
-  let c0' = Constr.add (Modecond (rho, Normal)) c0 in
+  let alpha = next_kvar () in (* alpha = 0 *)
+  let c0, c1, ms, gsrc, gammaenc, eidmap, eidrevmap, fcost, translation, klist = (Constraints.gen_constraints Low gammasrc rho alpha stmt VarLocMap.empty EnclaveidMap.empty EnclaveidRevMap.empty true) in
+  let c0'' = Constr.add (Killcond (alpha, 0)) c0 in
+  let c0' = Constr.add (Modecond (rho, Normal)) c0'' in
   let totalc = PPlus (fst fcost, snd fcost) in 
 
   let (eidmap', eidrevmap') = Helper.fill_eidrevmap ms eidmap eidrevmap in
@@ -46,7 +48,7 @@ let () =
   let out= (read_process "/Users/anithagollamudi/research/solvers/toysolver-master/dist/build/toysat/toysat --pb min.opb") in
    let _ = Printf.printf "%s" out in
   
-  let model = Util.extractsatmodel out ms in
+  let model = Util.extractsatmodel out ms klist in
   let _ = Pprint.printEidMap eidmap in
 
   let eidset = fill_enclave_ids VarSet.empty in

@@ -267,29 +267,29 @@ let rec src_flow_sensitive_type_infer (pc:policy) (g:context) = function
     *)
 
 let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
-    |EAssign(rho, x, e)-> 
+    |EAssign(rho, x, e,_)-> 
 		      let enctype = get_enc_exp_type  genc e in
 		      let encvarlabtype = join (pc, (get_enc_exp_label enctype)) in
 		      let genc1 = VarLocMap.add (Reg x) (fst enctype, encvarlabtype) genc in
 		      genc1
-    |EDeclassify(rho,x, e) -> 
+    |EDeclassify(rho,x, e,_) -> 
 		      let enctype = get_enc_exp_type  genc e in
 		      let genc1 = VarLocMap.add (Reg x) (fst enctype, Low) genc in
 		      genc1
-    |EUpdate(rho, e1, e2) -> genc
-    |ESeq(rho, s1, s2)  ->  let g1 = enc_flow_sensitive_type_infer pc genc s1 in
+    |EUpdate(rho, e1, e2,_) -> genc
+    |ESeq(rho, s1, s2,_)  ->  let g1 = enc_flow_sensitive_type_infer pc genc s1 in
 		            let g2 = enc_flow_sensitive_type_infer pc g1 s2 in
 		      	    g2 
-    |EESeq(rho, slist)  -> let rec seq_flow_sensitive genc = function
+    |EESeq(rho, slist,_)  -> let rec seq_flow_sensitive genc = function
 				|[] -> genc
 				|s::tail ->
 			    		let genc' = enc_flow_sensitive_type_infer pc genc s in
 					seq_flow_sensitive genc' tail
 			   in seq_flow_sensitive genc slist
 
-    |ESet(rho, x)	-> genc
-    |ESkip(rho, rho') -> genc
-    |EIf(rho, e, s1, s2) ->   
+    |ESet(rho, x,_)	-> genc
+    |ESkip(rho, rho',_) -> genc
+    |EIf(rho, e, s1, s2,_) ->   
 		      let pc' = get_enc_exp_label (get_enc_exp_type genc e) in
     		      let g1 = enc_flow_sensitive_type_infer pc' genc s1 in
 		      let g2 = enc_flow_sensitive_type_infer pc' genc s2 in
@@ -301,7 +301,7 @@ let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
 			| _ -> raise (TranslationError "Join of target contexts not possible. Domain of contexts is not same.") 
 			end ) g1 g2
 			in g'
-    |EWhile(rho, e, s) -> (* Compute Fixpoint *)
+    |EWhile(rho, e, s,_) -> (* Compute Fixpoint *)
 		    let rec compute_fixpoint s gi'  = 
 		    	 let pc' = join (get_enc_exp_label (get_enc_exp_type gi' e), pc) in
 			 let gi'' = enc_flow_sensitive_type_infer pc' gi' s in
@@ -318,7 +318,7 @@ let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
 			 else 
 				compute_fixpoint s  gn
 		     in compute_fixpoint s genc
-    |ECall (rho, e) ->  let enctype = get_enc_exp_type genc e in
+    |ECall (rho, e,_) ->  let enctype = get_enc_exp_type genc e in
 			let gencpost = get_enc_postcontext enctype in
 			(* Genc_out(x) = Genc_post(x) if x is in Dom(Genc_post)
 			    = Genc(x) o.w *)
@@ -329,9 +329,27 @@ let rec enc_flow_sensitive_type_infer (pc:policy) (genc:enccontext) = function
 							end) gencpost genc
 			in
 			gencout
-    |EOutput(rho, x, e) -> genc
+    |EOutput(rho, x, e,_) -> genc
     | _  -> raise (UnimplementedError "Enclave flow sensitive typing not implemented for this statement")
 
+ let rec gen_killset c2 rholist alphalist eidrevmap =
+	match (alphalist, rholist) with
+	|[],_ -> c2
+	|k_i::ktail, rhoxs::rhotail  ->
+				let rec innerloop rhotail c2 =
+				(* Generate constraints for all rhotail *)
+				begin match rhotail with
+				|[] -> c2
+				|hd'::tail' -> let bij = 
+						(EnclaveidRevMap.find (rhoxs, hd') eidrevmap) in
+						(* Constraint: k_i = 1 /\ hd' =1 ->  b_ij = 1 *)
+						let c2' = Constr2.add (Prekillcond ((k_i, 1), (hd', (Enclave "dummy"))), Eidcond (bij, 1)) c2 in
+						innerloop tail' c2'
+				end in
+				let c2' = innerloop rhotail c2 
+				in gen_killset c2' rhotail ktail eidrevmap	
+
+ 
 (* [gen_constraints g e] typegen_constraintss [e] in the context [g] generating a type and a set of constraints. Raise TypeError if constraints cannot be generated. *)
 (* Return type is a pair of constraint sets. First set are hard constraints of form P = Q, second set has conditional constraints of form If P then Q *)
 let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (eidmap:enclaveidmap) (eidrevmap:enclaveidrevmap) : constr * constr2 * modeset * enccontext * enclaveidmap* enclaveidrevmap*totalcost * encexp = 
@@ -418,7 +436,7 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
 		   (* Check if gencpost contains any high variables, if so \rho' = E *)
 	     	   let allreglow = check_typing_context_reg_low gencpost in
 		   (* Note that the toplevel is set to false. We handle the constraint (not allreglow)-> rho' = E *)
-		   let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, scost, es = gen_constraints p g rho' s genc eidmap eidrevmap false in
+		   let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, scost, es,_ = gen_constraints p g rho' "dummy" s genc eidmap eidrevmap false in
 		   (* rho = rho'*)
 		   let rhoid = (get_enclave_id  rho) in
 		   let rho'id = (get_enclave_id  rho') in
@@ -465,7 +483,7 @@ let rec gen_constraints_exp (g:context) (rho:mode)  (e:exp) (genc: enccontext) (
    + modeenv - maps rho to program statements and expressions - for readability
    + modeset - set of mode variables
 *)
-and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:enccontext) (eidmap: enclaveidmap) (eidrevmap:enclaveidrevmap) (toplevel:bool) : constr * constr2 * modeset * context * enccontext * enclaveidmap * enclaveidrevmap* totalcost * encstmt = 
+and gen_constraints (pc:policy) (g:context) (rho: mode) (alpha:var) (s0:stmt) (genc:enccontext) (eidmap: enclaveidmap) (eidrevmap:enclaveidrevmap) (toplevel:bool) : constr * constr2 * modeset * context * enccontext * enclaveidmap * enclaveidrevmap* totalcost * encstmt*(var list ) = 
  let ms = ModeSet.add rho ModeSet.empty in
   match s0 with
     | Assign(x, e)-> 
@@ -478,13 +496,13 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      (* update genc1 *)
 		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
 		      let totalc = ecost in
-		      let estmt = EAssign(rho, x, ee) in
+		      let estmt = EAssign(rho, x, ee, alpha) in
 		      let ms2 = ModeSet.union ms ms1 in
 		      begin match varlabtype with
 			| Erase(_,_,_)
 			| High -> let c3 = (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c1) in
-				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt)
-			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt)
+				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt, [])
+			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt, [])
 		      end
     | Declassify(x,e) -> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
@@ -496,13 +514,13 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      (* update genc1 *)
 		      let genc2 =  VarLocMap.add (Reg x) (fst enclt, varlabtype) genc1 in
 		      let totalc = ecost in
-		      let estmt = EDeclassify(rho, x, ee) in
+		      let estmt = EDeclassify(rho, x, ee, alpha) in
 		      let ms2 = ModeSet.union ms ms1 in
 		      begin match varlabtype with
 			| Erase(_,_,_)
 			| High -> let c3 = (Constr.add (Modecond (rho, (Enclave (get_enclave_id rho)))) c1) in
-				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt)
-			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt)
+				  (c3, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc, estmt, [])
+			| _ -> (c1, c2, ms2, g2, genc2, eidmap1, eidrevmap1, totalc,  estmt, [])
 		      end
     |Update(e1, e2) -> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost1, ee1 = gen_constraints_exp g rho e1 genc eidmap eidrevmap in
@@ -513,7 +531,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let ms4 = ModeSet.union ms2 ms3 in 
 
 		      let totalc = (PPlus (fst ecost1, fst ecost2), PPlus (snd ecost1, snd ecost2)) in
-		      let estmt = EUpdate(rho, ee1, ee2) in
+		      let estmt = EUpdate(rho, ee1, ee2, alpha) in
 
 
 		      (* Get the translated type of e1 *)
@@ -541,16 +559,26 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 				  let c11 = (Constr.add (Modecond (rho', (Enclave rhoid))) c10) in
 				  (* bij = 0 *)
 				  let (bij, eidmap4, eidrevmap4)  = get_bij_var rho rho' eidmap3 eidrevmap3 in 
-				   (Constr.add (Eidcond (bij, 0)) c11,	c9, ms4, g, genc2, eidmap4, eidrevmap4, totalc, estmt)
-			| _ -> (c7, c9, ms4, g, genc2, eidmap3, eidrevmap3, totalc, estmt)
+				   (Constr.add (Eidcond (bij, 0)) c11,	c9, ms4, g, genc2, eidmap4, eidrevmap4, totalc, estmt, [])
+			| _ -> (c7, c9, ms4, g, genc2, eidmap3, eidrevmap3, totalc, estmt, [])
 		      end
     |Seq(s1, s2)  -> let seqlist = flattenseq s0 in
-			let rec seqloop pc c1 c2 rhoi  ms scost g genc eidmap eidrevmap eslist = function
-			| [] -> (c1, c2, ms, g,  genc, eidmap, eidrevmap, scost, eslist)
+		     let nenc = number_of_enclaves in
+			let rec seqloop pc c1 c2 rhoi alphai ms scost g genc eidmap eidrevmap eslist rholist alphalist  = function
+			| [] -> (c1, c2, ms, g,  genc, eidmap, eidrevmap, scost, eslist, rholist, alphalist)
 			| xs::tail -> 
-				    let  c3, c4, ms1, g1, genc1, eidmap1, eidrevmap1, scost1, es1 = gen_constraints pc g rhoi xs genc eidmap eidrevmap false in
+				    let  c3, c4, ms1, g1, genc1, eidmap1, eidrevmap1, scost1, es1, _ = gen_constraints pc g rhoi alphai xs genc eidmap eidrevmap false in
 				    if not (List.length tail = 0) then
 				    	let rhoj = next_tvar () in
+				    	let alphaj = next_kvar () in
+					let alphalist' = alphalist@[alphaj] in
+					let rholist' = rholist@[rhoj] in
+					(* FIXME: HACK for killsets. Killing enclaves at exit. Not quite right from optimization perspective *)
+					(* Constraint: rhoj = 0 /\ rhoi = 1 -> alphai = 1 *)
+					let c4tmp =if toplevel then 
+						   	Constr2.add (Prekillexitcond ((rhoi, (Enclave "dummy")), (rhoj, Normal)), Killcond (alphai, 1)) c4 
+						   else
+							c4 in
 					let (bij, eidmap2, eidrevmap2) = get_bij_var rhoi rhoj eidmap1 eidrevmap1 in
 				    	(* Check if genc1 has any high registers. If yes, then generate the constraints *)
 				     	let allreglow = check_typing_context_reg_low genc1 in
@@ -565,18 +593,15 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 					       		else
 								c3
  				     	in
-				     	let (c6, eidmap3, eidrevmap3) = begin match rho with
-						| Normal -> (c4, eidmap2, eidrevmap2) (* no enclave id exists *)
-						| _ ->
+				     	let (c6, eidmap3, eidrevmap3) = 
  						        let c4' = 
 				     			(* rho = E -> rhoi = E *)
-				     			Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Modecond (rhoi, (Enclave (get_enclave_id rho))))) c4 
+				     			Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Modecond (rhoi, (Enclave (get_enclave_id rho))))) c4tmp 
 							in
 				     			(* rho = E -> bij = 0 *)
 							let (bij, eidmap3, eidrevmap3) = get_bij_var rho rhoi eidmap2 eidrevmap2 in
 				     			(Constr2.add (Premodecond (rho, (Enclave (get_enclave_id rho))), (Eidcond (bij, 0))) c4', eidmap3, eidrevmap3)
 							 
-						end
 					in
 				     	let entrycost = compute_one_seq_entry_cost rho rhoi rhoj bij (PPlus (fst scost, fst scost1)) in
 				     	(* Trusted cost on next statement in the list *)
@@ -586,7 +611,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 								compute_one_seq_trusted_cost rho rhoj (List.hd tail) (PPlus (snd scost, snd scost1))
 				     	in
 				     	let totalc = (entrycost, trustedcost) in
-				     	seqloop pc (Constr.union c1 c5) (Constr2.union c2 c6) rhoj (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
+				     	seqloop pc (Constr.union c1 c5) (Constr2.union c2 c6) rhoj alphaj (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) (rholist') (alphalist') tail
 				    (* Last instruction in the sequence *)
 				     else
 				     	let (c6, eidmap3, eidrevmap3) = begin match rho with
@@ -608,12 +633,13 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 						raise (TranslationError "Registers may contain secrets when exiting enclave.")
 					else
 						let totalc = (PPlus ((fst scost), (fst scost1)), PPlus ((snd scost), (snd scost1))) in
-				     		seqloop pc (Constr.union c1 c3) (Constr2.union c2 c6) rhoi (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) tail
+				     		seqloop pc (Constr.union c1 c3) (Constr2.union c2 c6) rhoi alphai (ModeSet.union ms ms1) totalc g1 genc1 eidmap3 eidrevmap3 (eslist @ [es1]) rholist alphalist tail
 		     in
 		     (* initially zero cost, compute later *)
 		     let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
 		     let rho0 = next_tvar () in
-		     let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, fcost, eslist = seqloop pc Constr.empty Constr2.empty rho0  ms zerocost  g genc  eidmap eidrevmap [] seqlist in
+		     let alpha0 = next_kvar () in
+		     let c1, c2, ms1, g1, genc1, eidmap1, eidrevmap1, fcost, eslist, rholist, alphalist = seqloop pc Constr.empty Constr2.empty rho0 alpha0 ms zerocost  g genc  eidmap eidrevmap [] [rho0] [alpha0] seqlist in
 		     (* compute additional entry cost *)
 		     let rho1 = begin match eslist with
 				|[] -> raise EmptySeqError
@@ -641,8 +667,11 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		     in
 		     let (total_diff_id_cost, eidmap3, eidrevmap3) = compute_diff_id_cost eslist rho eidmap1 eidrevmap1 seqtrustedcost in			   
 		     let totalc = (seqentrycost, total_diff_id_cost) in
-		     let es = (EESeq (rho, eslist)) in
-		     (c1, c2, ms1, g1, genc1, eidmap3, eidrevmap3, totalc, es) 
+		     (* Hack generate killset *) 
+		     (* let c2' = gen_killset c2 rholist alphalist eidrevmap3 in*)
+		     let c2' = c2 in
+		     let es = (EESeq (rho, eslist, alpha)) in
+		     (c1, c2', ms1, g1, genc1, eidmap3, eidrevmap3, totalc, es, alphalist) 
     |If(e, s1, s2) -> 
 			(* TODO: Implement isunset() translation here *)
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
@@ -656,8 +685,8 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let len2 = List.length (flattenseq s2) in
 		      	  
 		      (* Note use only genc1! *)
-		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost1, es1 = gen_constraints pc' g rho1 s1 genc1 eidmap1 eidrevmap1 false in
-		      let c5, c6, ms3, g3, genc3, eidmap3, eidrevmap3, fcost2, es2 = gen_constraints pc' g rho2 s2 genc1 eidmap2 eidrevmap2 false in
+		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost1, es1, _ = gen_constraints pc' g rho1 alpha s1 genc1 eidmap1 eidrevmap1 false in
+		      let c5, c6, ms3, g3, genc3, eidmap3, eidrevmap3, fcost2, es2, _ = gen_constraints pc' g rho2 alpha s2 genc1 eidmap2 eidrevmap2 false in
 		      let c7, c8 = (Constr.union c1 c3, Constr2.union c2 c4) in
 		      let c9, c10 = (Constr.union c5 c7, Constr2.union c6 c8) in
 		      let allreglow1 = check_typing_context_reg_low genc2 in
@@ -682,7 +711,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 			let (bij', eidmap'', eidrevmap'') = get_bij_var rho rho1 eidmap' eidrevmap' in
 			let c14' = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij', 0)) c14 in
 
-			let es0 = EIf(rho, ee, es1, es2) in
+			let es0 = EIf(rho, ee, es1, es2, alpha) in
 			(* Update source and target typing contexts *)
 			let g' = src_flow_sensitive_type_infer pc g s0 in
 			let genc' = enc_flow_sensitive_type_infer pc genc1 es0 in
@@ -728,13 +757,13 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 			let ms4 = ModeSet.union ms ms1 in
 			let ms5 = ModeSet.union ms2 ms3 in 
 			begin match (get_exp_label (get_exp_type g e)) with
-				| Low -> (c15, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost),  es0)
+				| Low -> (c15, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost),  es0, [])
 				| Erase(_,_,_)  (* Add rho = rho1 =rho2 = E *)
 				| High ->let c16 = (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c15) in
 					 let c17 = (Constr.add (Modecond (rho1, Enclave (get_enclave_id rho))) c16) in
 					 let c18 = (Constr.add (Eidcond (b1, 0)) c17) in 
 					 let c19 = (Constr.add (Eidcond (b2, 0)) c18) in 
-					(Constr.add (Modecond (rho2, Enclave (get_enclave_id rho))) c19, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost), es0)
+					(Constr.add (Modecond (rho2, Enclave (get_enclave_id rho))) c19, c14', ModeSet.union ms4 ms5, g', genc', eidmap6, eidrevmap6, (if_entry_cost,if_diffid_cost), es0, [])
 			end
     |Call e -> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
@@ -748,20 +777,20 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		      let gencpre = get_enc_precontext ebtfunctype in
 		      let gencpost = get_enc_precontext ebtfunctype in
 		      (* TODO: Check g <= gpre, gpost <= gout *)
-		      let es0 = ECall(rho, ee) in 
+		      let es0 = ECall(rho, ee, alpha) in 
 		      let gout = src_flow_sensitive_type_infer pc g s0 in
 		      let gencout = enc_flow_sensitive_type_infer pc genc1 es0 in
 		      (* rho = rho' *)
 		      let c3 = (Constr.add (Modecond (rho, rho')) c1) in
 		      let (bij, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap1 eidrevmap1 in
-			(Constr.add (Eidcond (bij, 0)) c3, c2, ModeSet.union ms ms1, gout, gencout, eidmap2, eidrevmap2, totalc, ECall(rho, ee))
+			(Constr.add (Eidcond (bij, 0)) c3, c2, ModeSet.union ms ms1, gout, gencout, eidmap2, eidrevmap2, totalc, ECall(rho, ee, alpha), [])
 
     |While(e, s) -> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
 		      let rho' = next_tvar() in
 		      let pc' = get_exp_label (get_exp_type g e) in
 		      (* Note use only genc1! *)
-		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost, es = gen_constraints pc' g rho' s genc1 eidmap1 eidrevmap1 false in
+		      let c3, c4, ms2, g2, genc2, eidmap2, eidrevmap2, fcost, es,_ = gen_constraints pc' g rho' alpha s genc1 eidmap1 eidrevmap1 false in
 		      let c7, c8 = (Constr.union c1 c3, Constr2.union c2 c4) in
 		      let allreglow1 = check_typing_context_reg_low genc2 in
 		      let c9 = if (not allreglow1) then 
@@ -775,7 +804,7 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 			let (bij, eidmap', eidrevmap') = get_bij_var rho rho' eidmap2 eidrevmap2 in
 			let c11 = Constr2.add (Premodecond (rho, Enclave (get_enclave_id rho)), Eidcond(bij, 0)) c10 in
 
-			let es0 = EWhile(rho, ee, es) in
+			let es0 = EWhile(rho, ee, es, alpha) in
 			(* Update source and target typing contexts *)
 			let g' = src_flow_sensitive_type_infer pc g s0 in
 			let genc' = enc_flow_sensitive_type_infer pc genc2 es0 in
@@ -792,24 +821,24 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		 	let (b1, eidmap2, eidrevmap2) = get_bij_var rho rho' eidmap' eidrevmap' in
 			let ms3 = ModeSet.union ms ms1 in
 			begin match (get_exp_label (get_exp_type g e)) with
-				| Low -> (c9, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0)
+				| Low -> (c9, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0, [])
 				| Erase(_,_,_)  (* Add rho = rho1= E *)
 				| High ->let c12 = (Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c9) in
 					 let c13 = (Constr.add (Modecond (rho', Enclave (get_enclave_id rho))) c12) in
 					 let c14 = (Constr.add (Eidcond (b1, 0)) c13) in 
-					(c14, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0)
+					(c14, c11, ModeSet.union ms2 ms3, g', genc', eidmap2, eidrevmap2, (while_entry_cost,while_trusted_cost),  es0, [])
 			end
 		     
     |Output(x, e) -> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho e genc eidmap eidrevmap in
 		      let totalc = ecost in
-		      let es0 = EOutput(rho, x, ee) in
-			(c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0)
+		      let es0 = EOutput(rho, x, ee, alpha) in
+			(c1,  c2, ModeSet.union ms ms1, g, genc1, eidmap1, eidrevmap1, totalc, es0, [])
 		
     | Set x	-> 
 		      let c1, c2, ms1, genc1, eidmap1, eidrevmap1, ecost, ee = gen_constraints_exp g rho (Var x) genc eidmap eidrevmap in
 		      let totalc = ecost in
-		      let es0 = ESet(rho, x) in
+		      let es0 = ESet(rho, x, alpha) in
 
 		      let refenclt1 = (get_enc_exp_type genc1 ee ) in
 		      let rho'      = get_mode refenclt1 in 
@@ -822,8 +851,8 @@ and gen_constraints (pc:policy) (g:context) (rho: mode) (s0:stmt) (genc:encconte
 		       (* let c5 = Constr.add (Modecond (rho, Enclave (get_enclave_id rho))) c1 in *)
 			let c5 = c1 in
 
-		      (c5, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0)
+		      (c5, c4, ModeSet.union ms ms1, g, genc1, eidmap', eidrevmap', totalc, es0, [])
 
     | Skip -> let zerocost = (PMonoterm (0, ((Mono (Mode rho)))), PMonoterm (0, ((Mono (Mode rho))))) in 
-		(Constr.empty, Constr2.empty, ms, g, genc, eidmap, eidrevmap, zerocost,  ESkip(rho, rho))
+		(Constr.empty, Constr2.empty, ms, g, genc, eidmap, eidrevmap, zerocost,  ESkip(rho, rho, alpha), [])
     | _ -> raise (UnimplementedError "Constraint generation not supported for this construct" )

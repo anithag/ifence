@@ -1,5 +1,5 @@
  while ( *l1 != 0 )  if *l1 == 1 then 
- enclave(0, output *l2 + *l3 to H  ) 
+  
  else enclave (0, 
  output *l2 % *l3 to H  
- ) skip    end  
+ ) end  

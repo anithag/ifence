@@ -1,6 +1,7 @@
 open Unix
 open Printf
 open Ast
+open Helper
 
 exception ModeError of string
 exception EidSelectionError of string
@@ -31,7 +32,10 @@ let ismodevar xstr ms =
  end
  in check_rho_exists elems 
 
-let parse_model inp model ms : modesat =
+ let iskillvar xstr klist =
+ 	List.exists (fun elm -> xstr = elm ) klist
+
+let parse_model inp model ms klist : modesat =
  let xlist = Str.split (Str.regexp " ") inp in
  let rec loop xs model isbreak  = 
   match xs with
@@ -58,7 +62,9 @@ let parse_model inp model ms : modesat =
 					xstr'
 		in
 		(* Check if xstr is a mode variable or bij *)
-		let model' = if not (ismodevar xstr ms) then
+		let model' = if (iskillvar xstr klist) then
+				ModeSAT.add (Kvar xstr) xsign model
+			     else if not (ismodevar xstr ms) then
 				ModeSAT.add (Eid xstr) xsign model
 			     else
 				ModeSAT.add (Mode (ModeVar (xstr, "dummy"))) xsign model
@@ -67,7 +73,7 @@ let parse_model inp model ms : modesat =
 		in loop tail model' isbreak
  in loop xlist model false
 
-let extractsatmodel  inp eidmap : modesat =
+let extractsatmodel  inp eidmap klist : modesat =
   let pos = Str.search_forward (Str.regexp "OPTIMUM FOUND") inp 0 in
   let _ = Printf.printf "Position: %d\n" pos in
   let start = Str.search_forward (Str.regexp "v ") inp pos in
@@ -78,7 +84,7 @@ let extractsatmodel  inp eidmap : modesat =
 
   let extractsat = String.sub inp (start + 2) (posend - start -2) in
   let _ = Printf.printf "%s\n" extractsat  in
-  parse_model extractsat ModeSAT.empty eidmap
+  parse_model extractsat ModeSAT.empty eidmap klist
 
 
 
@@ -86,7 +92,8 @@ let extractsatmodel  inp eidmap : modesat =
 let fill_enclave_ids eidset = 
   let i = 0 in
   let rec fill_numeric_ids eidset i =
-	if VarSet.cardinal eidset = 10 then
+	let n = number_of_enclaves in
+	if VarSet.cardinal eidset = n then
 		eidset
 	else
 		let eidset' = VarSet.add (string_of_int i) eidset in
