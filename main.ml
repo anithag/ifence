@@ -16,7 +16,7 @@ let () =
   let file = open_in (Sys.argv.(filearg)) in
   let lexbuf = Lexing.from_channel file in
   let (gammasrc, stmt) =
-    try Parser.program Lexer.token lexbuf
+    try Parser.pprogram Lexer.token lexbuf
     with Parsing.Parse_error ->
       let pos = lexbuf.Lexing.lex_curr_p in
       Format.printf "Syntax error at line %d\n" pos.Lexing.pos_lnum;

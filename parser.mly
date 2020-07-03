@@ -12,12 +12,12 @@
        IF THEN ELSE ENDIF LAMBDA EOF DEREF UPDATE SET ISUNSET  OUTPUT ASSIGN SKIP WHILE DO END
        INT BOOL COND FUNC REF LOW HIGH ERASE CHANNEL DECLASSIFY TOP 
 
-%type <Ast.program> program
-%type <Ast.stmt> stmt
+%type <Ast.program> pprogram 
+%type <Ast.stmt> pstmt
 %type <Ast.exp> exp
 %type <Ast.cndset> Uset
 
-%start program
+%start pprogram
  
 %%
 
@@ -50,14 +50,14 @@ vardecllist: vardecl                { $1 }
 							| None, right -> right
 							| left, None  -> left
 						      ) $1 $3 }
-program: vardecllist stmt           {($1, $2)} 
+pprogram: vardecllist pstmt           {($1, $2)} 
 
-stmt : IF bexp THEN stmt ELSE stmt ENDIF  	{ If($2, $4, $6) }
+pstmt : IF bexp THEN pstmt ELSE pstmt ENDIF  	{ If($2, $4, $6) }
      | SKIP			   		{ Skip }
      | VAR ASSIGN exp		    		{ Assign($1, $3)  }
      | VAR ASSIGN DECLASSIFY LPAREN exp RPAREN  { Declassify($1, $5)  }
-     | stmt SEQ stmt		    		{ Seq($1, $3)  }
-     | WHILE bexp DO stmt   END     		{ While($2, $4) }
+     | pstmt SEQ pstmt		    		{ Seq($1, $3)  }
+     | WHILE bexp DO pstmt   END     		{ While($2, $4) }
      | exp UPDATE exp 		    		{ Update($1, $3) }
      | OUTPUT LPAREN CHANNEL COMMA aexp RPAREN  { Output($3, $5) }
      | CALL LPAREN exp RPAREN 	    		{ Call($3) }
@@ -68,7 +68,7 @@ exp : bexp 				{ $1 }
     | aexp 				{ $1 }
     | lexp                              { $1 }
 
-lexp : LPAREN LAMBDA LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN DOT stmt RPAREN UNDERSCORE policy 	{ Lam($5,$8,$10,$13,$20,$17) }
+lexp : LPAREN LAMBDA LPAREN LCURLY vardecllist RCURLY COMMA policy COMMA Uset COMMA LCURLY vardecllist RCURLY RPAREN DOT pstmt RPAREN UNDERSCORE policy 	{ Lam($5,$8,$10,$13,$20,$17) }
  
 bexp: TRUE			  			 { True  }
     | FALSE                        			 { False }
