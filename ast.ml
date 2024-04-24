@@ -6,7 +6,7 @@ type mode = Enclave of var | Normal | ModeVar of var * var
 
 module VarSet = Set.Make(struct
   type t = var
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 (* sets of condition variables *)
@@ -21,7 +21,7 @@ type varloc = Reg of var | Mem of int
 (* maps with variables and locations as keys *)
 module VarLocMap = Map.Make(struct
   type t = varloc
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 (* Base types *)
@@ -141,7 +141,7 @@ type constr_cond =
 (* sets of pairs of types *)
 module Constr = Set.Make(struct
   type t = constr_cond
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 type pre_cond =  
@@ -152,7 +152,7 @@ type pre_cond =
 
 module Constr2 = Set.Make(struct
   type t = pre_cond * constr_cond
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 (* constraints *)
@@ -164,7 +164,7 @@ type constr2 = Constr2.t
 (* maps with mode variables as keys *)
 module ModeVarMap = Map.Make(struct
   type t = var
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 (* mode substitutions *)
@@ -174,7 +174,7 @@ type program = context * stmt
 (* maps with mode variables as keys *)
 module ModeProgSet = Set.Make(struct
   type t = mode * progbody 
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 (* evaluation environments *)
@@ -183,7 +183,7 @@ type modeenv = ModeProgSet.t
 (* Set of mode variables *)
 module ModeSet = Set.Make(struct
   type t = mode
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 type modeset = ModeSet.t
 
@@ -211,14 +211,14 @@ type totalcost = polynomial*polynomial
 (* Mode SAT *)
 module ModeSAT = Map.Make(struct
   type t = costvar 
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
  end)
 type modesat = int ModeSAT.t
 
 (* Map bij to modes *)
 module EnclaveidMap = Map.Make(struct
   type t = var
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 type modepair = (mode * mode )
@@ -226,14 +226,14 @@ type enclaveidmap = modepair EnclaveidMap.t
 
 module EnclaveidRevMap = Map.Make(struct
   type t = modepair
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 type enclaveidrevmap = var EnclaveidRevMap.t
 
 module EnclaveidConstraints = Map.Make(struct
   type t = mode
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end)
 
 type enclaveidconstraints = eidset EnclaveidConstraints.t
