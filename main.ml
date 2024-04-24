@@ -45,7 +45,8 @@ let () =
   let _ = Format.printf "Calling Solver \n" in
   (* Call Solver and get output *) 
   (* let out= (read_process "java -jar /Users/anithagollamudi/research/solvers/sat4j/sat4j-pb.jar min.opb" ) in  *)
-  let out= (read_process "/Users/anithagollamudi/research/solvers/toysolver-master/dist/build/toysat/toysat --pb min.opb") in
+  (* let out= (read_process "/Users/anithagollamudi/research/solvers/toysolver-master/dist/build/toysat/toysat --pb min.opb") in*)
+  let out = (read_process "docker run -it --rm -v `pwd`:/data msakai/toysolver toysat --pb min.opb") in
    let _ = Printf.printf "%s" out in
   
   let model = Util.extractsatmodel out ms klist in
